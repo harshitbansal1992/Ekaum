@@ -10,7 +10,7 @@ The connection string has been updated with the correct format from Supabase das
 
 **Connection String Updated:**
 ```
-postgresql://postgres.odzpwqclczerzxpkcsnx:Tripursundhari9@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres
+postgresql://postgres.odzpwqclczerzxpkcsnx:yourOwnPassword@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres
 ```
 
 **Key Difference:**
