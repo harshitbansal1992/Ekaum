@@ -1,19 +1,38 @@
 {
   "name": "bslnd-backend",
   "version": "1.0.0",
-  "description": "Backend API for BSLND Flutter app",
+  "description": "RESTful Backend API for BSLND Flutter mobile application with authentication, payments, and content management",
   "main": "server.js",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "NODE_ENV=production node server.js",
+    "dev": "NODE_ENV=development nodemon server.js",
+    "test": "NODE_ENV=test node server.js",
+    "test:watch": "NODE_ENV=test nodemon server.js",
+    "lint": "eslint . --ext .js",
+    "lint:fix": "eslint . --ext .js --fix",
+    "format": "prettier --write \"src/**/*.js\" \"server.js\"",
+    "mode:info": "node -e \"const { config, getModeConfig } = require('./src/config'); console.log(JSON.stringify(getModeConfig(), null, 2));\""
   },
   "keywords": [
     "bslnd",
     "api",
-    "nodejs"
+    "nodejs",
+    "express",
+    "postgresql",
+    "rest-api",
+    "authentication",
+    "jwt"
   ],
-  "author": "",
+  "author": "BSLND Team",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/bslnd-backend"
+  },
   "dependencies": {
     "axios": "^1.6.2",
     "bcryptjs": "^2.4.3",
@@ -25,6 +44,10 @@
     "pg": "^8.20.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "eslint": "^8.54.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.29.0",
+    "nodemon": "^3.0.2",
+    "prettier": "^3.1.0"
   }
 }
