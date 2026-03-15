@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../data/services/rahu_kaal_location_service.dart';
 import '../../data/services/rahu_kaal_service.dart';
 
 class RahuKaalPage extends StatefulWidget {
@@ -37,79 +36,35 @@ class _RahuKaalPageState extends State<RahuKaalPage> {
     });
 
     try {
-      if (kIsWeb) {
-        // Web version - use default location
-        final defaultLat = 22.7196;
-        final defaultLon = 75.8577;
-        
-        final timings = RahuKaalService.calculateTimings(
-          latitude: defaultLat,
-          longitude: defaultLon,
-          date: _selectedDate,
-          cityName: 'Indore',
-        );
-
-        setState(() {
-          _timings = timings;
-          _locationName = 'Indore, India';
-          _isLoading = false;
-          _showCopyButton = true;
-        });
-        return;
-      }
-
-      // Mobile/Desktop - use Geolocator
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        setState(() {
-          _error = 'Location services are disabled. Please enable them.';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          setState(() {
-            _error = 'Location permissions are denied.';
-            _isLoading = false;
-          });
-          return;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        setState(() {
-          _error = 'Location permissions are permanently denied. Please enable in settings.';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+      final locationResult = await RahuKaalLocationService.getCurrentLocation(
+        webTimeout: const Duration(seconds: 10),
       );
 
-      setState(() {
-        _currentPosition = position;
-      });
-
-      // Get location name (simplified - in production use reverse geocoding)
       final timings = RahuKaalService.calculateTimings(
-        latitude: position.latitude,
-        longitude: position.longitude,
+        latitude: locationResult.latitude,
+        longitude: locationResult.longitude,
         date: _selectedDate,
+        cityName: locationResult.cityName,
+        stateName: locationResult.stateName,
+        countryCode: locationResult.countryCode,
       );
 
+      if (!mounted) return;
       setState(() {
+        _currentPosition = locationResult.position;
         _timings = timings;
-        _locationName = '${timings['cityName']}${timings['stateName']?.isNotEmpty == true ? ', ${timings['stateName']}' : ''}';
+        _locationName = locationResult.displayName;
         _isLoading = false;
         _showCopyButton = true;
       });
+    } on RahuKaalLocationException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _isLoading = false;
+      });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = 'Error getting location: ${e.toString()}';
         _isLoading = false;
@@ -710,4 +665,3 @@ class _RahuKaalPageState extends State<RahuKaalPage> {
     );
   }
 }
-

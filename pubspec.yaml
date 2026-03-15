@@ -16,6 +16,7 @@ dependencies:
 
   # Location
   geolocator: ^10.1.0
+  geocoding: ^2.1.1
   permission_handler: ^11.1.0
 
   # Payment
@@ -63,4 +64,3 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
-

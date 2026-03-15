@@ -107,6 +107,13 @@ flutter run
 - Run `flutter clean` then `flutter pub get`
 - Verify `pubspec.yaml` is correct
 
+### "Permission denied" for nodemon
+- This error indicates that the `nodemon` executable does not have the necessary permissions to run
+`Ekaum/backend/node_modules/.bin/nodemon: Permission denied`
+
+- cd `/Ekaum/backend`
+- Run `chmod +x node_modules/.bin/nodemon` to make it executable
+- Then try running `npm start` again
 ---
 
 **The app code is 100% complete and ready to run once Flutter is in your PATH!**
