@@ -19,8 +19,8 @@ class RahuKaalService {
     // Based on solar position calculations
     final sunrise = _calculateSunrise(date, latitude, longitude);
     final sunset = _calculateSunset(date, latitude, longitude);
-    final noon = _calculateNoon(date, longitude);
-    
+    final noon = _calculateNoon(date, latitude, longitude);
+
     // Day length in seconds (for Rahu Kaal calculation)
     final dayLengthSeconds = (sunset.difference(sunrise).inSeconds);
     final dayLengthEighth = dayLengthSeconds ~/ 8;
@@ -28,8 +28,8 @@ class RahuKaalService {
     // Calculate Rahu Kaal based on day of week (matches reference logic)
     final dayOfWeek = date.weekday; // 1=Monday, 7=Sunday
     final rahuKaalStart = _calculateRahuKaalStart(sunrise, dayOfWeek, dayLengthEighth);
-    final rahuKaalEnd = rahuKaalStart.add(Duration(seconds: dayLengthEighth * 2));
-    
+    final rahuKaalEnd = rahuKaalStart.add(Duration(seconds: dayLengthEighth));
+
     // Brahma Muhurat: 96 minutes before sunrise to 48 minutes before sunrise
     final brahmaMuhuratStart = sunrise.subtract(const Duration(minutes: 96));
     final brahmaMuhuratEnd = sunrise.subtract(const Duration(minutes: 48));
@@ -136,9 +136,9 @@ class RahuKaalService {
   }
 
   // Calculate noon (solar noon) - midpoint between sunrise and sunset
-  static DateTime _calculateNoon(DateTime date, double longitude) {
-    final sunrise = _calculateSunrise(date, 22.7196, 75.8577);
-    final sunset = _calculateSunset(date, 22.7196, 75.8577);
+  static DateTime _calculateNoon(DateTime date, double latitude, double longitude) {
+    final sunrise = _calculateSunrise(date, latitude, longitude);
+    final sunset = _calculateSunset(date, latitude, longitude);
     final dayLength = sunset.difference(sunrise);
     return sunrise.add(Duration(seconds: dayLength.inSeconds ~/ 2));
   }
@@ -230,4 +230,3 @@ class RahuKaalService {
         'Shyam ki sandhya - $sayahnaStart se $sayahnaEnd';
   }
 }
-
