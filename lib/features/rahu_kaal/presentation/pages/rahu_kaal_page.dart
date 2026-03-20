@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/components/glass_card.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../nadi_dosh/data/services/geocoding_service.dart';
 import '../../data/services/rahu_kaal_location_service.dart';
 import '../../data/services/rahu_kaal_service.dart';
 
@@ -17,14 +19,16 @@ class RahuKaalPage extends StatefulWidget {
 }
 
 class _RahuKaalPageState extends State<RahuKaalPage> {
-  dynamic _currentPosition;
   Map<String, String>? _timings;
   bool _isLoading = false;
   String? _error;
   String? _locationName;
   DateTime _selectedDate = DateTime.now();
   bool _showCopyButton = false;
-  bool _localeInitialized = false;
+  String _locationInput = '';
+  String? _detectedLocationName;
+  PlaceSuggestion? _selectedPlaceSuggestion;
+  int _activeLocationRequestId = 0;
 
   @override
   void initState() {
@@ -32,24 +36,23 @@ class _RahuKaalPageState extends State<RahuKaalPage> {
     _initializeLocale();
   }
 
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
   Future<void> _initializeLocale() async {
     try {
       await initializeDateFormatting('en', null);
-      setState(() {
-        _localeInitialized = true;
-      });
-      _getCurrentLocation();
-    } catch (e) {
-      // If locale initialization fails, still try to get location
-      // DateFormat will use default formatting
-      setState(() {
-        _localeInitialized = true;
-      });
-      _getCurrentLocation();
+    } catch (_) {
+      // Date format falls back gracefully if locale data is unavailable.
     }
+    _getCurrentLocation();
   }
 
   Future<void> _getCurrentLocation() async {
+    final requestId = ++_activeLocationRequestId;
+
     setState(() {
       _isLoading = true;
       _error = null;
@@ -57,6 +60,46 @@ class _RahuKaalPageState extends State<RahuKaalPage> {
     });
 
     try {
+      final typedLocation = _locationInput.trim();
+      if (typedLocation.isNotEmpty) {
+        double latitude;
+        double longitude;
+
+        final selected = _selectedPlaceSuggestion;
+        if (selected != null &&
+            selected.displayName == typedLocation &&
+            selected.latitude != null &&
+            selected.longitude != null) {
+          latitude = selected.latitude!;
+          longitude = selected.longitude!;
+        } else {
+          final matches = await locationFromAddress(typedLocation);
+          if (matches.isEmpty) {
+            throw const RahuKaalLocationException('Unable to find this location. Please try another name.');
+          }
+          latitude = matches.first.latitude;
+          longitude = matches.first.longitude;
+        }
+
+        final timings = RahuKaalService.calculateTimings(
+          latitude: latitude,
+          longitude: longitude,
+          date: _selectedDate,
+          cityName: typedLocation,
+          stateName: selected?.state ?? '',
+          countryCode: selected?.countryCode ?? '',
+        );
+
+        if (!mounted || requestId != _activeLocationRequestId) return;
+        setState(() {
+          _timings = timings;
+          _locationName = typedLocation;
+          _isLoading = false;
+          _showCopyButton = true;
+        });
+        return;
+      }
+
       final locationResult = await RahuKaalLocationService.getCurrentLocation(
         webTimeout: const Duration(seconds: 10),
       );
@@ -70,22 +113,24 @@ class _RahuKaalPageState extends State<RahuKaalPage> {
         countryCode: locationResult.countryCode,
       );
 
-      if (!mounted) return;
+      if (!mounted || requestId != _activeLocationRequestId) return;
       setState(() {
-        _currentPosition = locationResult.position;
         _timings = timings;
+        _detectedLocationName = locationResult.displayName;
         _locationName = locationResult.displayName;
+        _locationInput = _locationName ?? '';
+        _selectedPlaceSuggestion = null;
         _isLoading = false;
         _showCopyButton = true;
       });
     } on RahuKaalLocationException catch (e) {
-      if (!mounted) return;
+      if (!mounted || requestId != _activeLocationRequestId) return;
       setState(() {
         _error = e.message;
         _isLoading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || requestId != _activeLocationRequestId) return;
       setState(() {
         _error = 'Error getting location: ${e.toString()}';
         _isLoading = false;
@@ -159,17 +204,12 @@ class _RahuKaalPageState extends State<RahuKaalPage> {
                     children: [
                       // Main Rahukaal Display
                       if (_timings != null) _buildRahukaalCard(),
-                      
-                      const SizedBox(height: 24),
-                      
-                      // Action Buttons (Today/Tomorrow)
-                      _buildActionButtons(),
-                      
+
                       const SizedBox(height: 24),
 
-                      // Date Picker
-                      _buildDatePickerSection(),
-                      
+                      // Action Buttons (Today/Tomorrow)
+                      _buildActionButtons(),
+
                       const SizedBox(height: 24),
 
                       // Sandhya Note
@@ -199,16 +239,7 @@ class _RahuKaalPageState extends State<RahuKaalPage> {
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-           Text(
-            'RAHU KAAL',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppTheme.primaryGold,
-              letterSpacing: 2.0,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 24),
-          
+
           // Time Display
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -247,31 +278,115 @@ class _RahuKaalPageState extends State<RahuKaalPage> {
           
           // Location & Date
           Container(
-             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryGold.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(50),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.location_on_outlined, color: AppTheme.primaryGold, size: 16),
-                  const SizedBox(width: 8),
-                  Text(
-                    _locationName ?? 'Unknown Location',
-                    style: const TextStyle(color: AppTheme.textDark, fontWeight: FontWeight.w500),
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryGold.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Autocomplete<PlaceSuggestion>(
+              optionsBuilder: (textEditingValue) async {
+                if (textEditingValue.text.length < 2) {
+                  return const Iterable<PlaceSuggestion>.empty();
+                }
+                return GeocodingService.searchPlaces(textEditingValue.text);
+              },
+              displayStringForOption: (option) => option.displayName,
+              fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                if (textEditingController.text != _locationInput) {
+                  textEditingController.value = TextEditingValue(
+                    text: _locationInput,
+                    selection: TextSelection.collapsed(offset: _locationInput.length),
+                  );
+                }
+
+                return TextFormField(
+                  controller: textEditingController,
+                  focusNode: focusNode,
+                  cursorColor: AppTheme.primaryGold,
+                  maxLines: 1,
+                  decoration: InputDecoration(
+                    labelText: 'Location',
+                    hintText: 'Start typing place name...',
+                    prefixIcon: const Icon(Icons.location_on),
+                    filled: true,
+                    fillColor: AppTheme.primaryGold.withOpacity(0.05),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: AppTheme.primaryGold.withOpacity(0.25)),
+                    ),
+                    focusedBorder: const OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(10)),
+                      borderSide: BorderSide(color: AppTheme.primaryGold, width: 1.4),
+                    ),
                   ),
-                ],
-              ),
+                  style: const TextStyle(
+                    color: AppTheme.textDark,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _locationInput = value;
+                      _selectedPlaceSuggestion = null;
+                      _locationName = value.trim().isEmpty ? _detectedLocationName : value.trim();
+                    });
+                  },
+                  onFieldSubmitted: (_) {
+                    onFieldSubmitted();
+                    _getCurrentLocation();
+                  },
+                );
+              },
+              onSelected: (option) {
+                setState(() {
+                  _selectedPlaceSuggestion = option;
+                  _locationInput = option.displayName;
+                  _locationName = option.displayName;
+                });
+                _getCurrentLocation();
+              },
+              optionsViewBuilder: (context, onSelected, options) {
+                return Align(
+                  alignment: Alignment.topLeft,
+                  child: Material(
+                    elevation: 4,
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(8),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: options.length,
+                        itemBuilder: (context, index) {
+                          final option = options.elementAt(index);
+                          return ListTile(
+                            dense: true,
+                            leading: const Icon(Icons.place, size: 18),
+                            title: Text(
+                              option.displayName,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            onTap: () => onSelected(option),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            _timings!['formattedDate'] ?? '',
-            style: const TextStyle(color: AppTheme.textDim, fontSize: 14),
-          ),
-          
-          const SizedBox(height: 24),
-          
+
+          const SizedBox(height: 16),
+
+          // Date Picker
+          _buildDatePickerSection(),
+
+          const SizedBox(height: 16),
+
           // Warning Note
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -287,7 +402,11 @@ class _RahuKaalPageState extends State<RahuKaalPage> {
                 const SizedBox(width: 10),
                 Text(
                   'DO NOT perform auspicious tasks',
-                  style: TextStyle(color: Colors.red.shade100, fontWeight: FontWeight.w600, fontSize: 13),
+                  style: TextStyle(
+                    color: Colors.red.shade200,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
               ],
             ),

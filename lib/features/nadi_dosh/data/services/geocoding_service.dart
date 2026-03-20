@@ -10,6 +10,7 @@ class PlaceSuggestion {
   final double? longitude;
   final String? country;
   final String? state;
+  final String? countryCode;
 
   PlaceSuggestion({
     required this.displayName,
@@ -17,6 +18,7 @@ class PlaceSuggestion {
     this.longitude,
     this.country,
     this.state,
+    this.countryCode,
   });
 
   factory PlaceSuggestion.fromJson(Map<String, dynamic> json) {
@@ -26,6 +28,8 @@ class PlaceSuggestion {
       longitude: json['lon'] != null ? double.tryParse(json['lon'].toString()) : null,
       country: json['address']?['country'] ?? json['country'],
       state: json['address']?['state'] ?? json['state'],
+      countryCode: (json['address']?['country_code']?.toString() ?? json['country_code']?.toString())
+          ?.toUpperCase(),
     );
   }
 }
@@ -113,6 +117,7 @@ class GeocodingService {
             latitude: coords.length > 1 ? coords[1]?.toDouble() : null,
             country: props['country'],
             state: props['state'],
+            countryCode: props['countrycode']?.toString().toUpperCase(),
           );
         }).toList();
       }
@@ -123,4 +128,3 @@ class GeocodingService {
     return [];
   }
 }
-
