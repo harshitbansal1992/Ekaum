@@ -57,3 +57,4 @@ npm run dev
 - `POST /api/admin/samagam` - Add Samagam event
 - `POST /api/admin/patrika` - Add Patrika issue
 
+
