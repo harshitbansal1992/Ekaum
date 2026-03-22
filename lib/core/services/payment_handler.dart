@@ -84,7 +84,10 @@ class PaymentHandler {
     BuildContext context,
     String formId,
     double amount,
-    int installmentNumber,
+    int installmentNumber, {
+    bool payRemainingInFull = false,
+    bool goToMyPaathOnSuccess = false,
+  }
   ) async {
     final authState = ProviderScope.containerOf(context).read(authProvider);
     final user = authState.user;
@@ -101,13 +104,20 @@ class PaymentHandler {
         formId: formId,
         amount: amount,
         installmentNumber: installmentNumber,
+        payRemainingInFull: payRemainingInFull,
         email: user.email,
         phone: user.phone ?? '',
         name: user.name ?? 'User',
       );
 
       if (context.mounted && payment['success'] == true) {
-        context.go('/payment/paath?payment_id=${payment['paymentId']}&payment_status=Credit');
+        if (goToMyPaathOnSuccess) {
+          context.go('/paath-details');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Installment payment successful')),
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {

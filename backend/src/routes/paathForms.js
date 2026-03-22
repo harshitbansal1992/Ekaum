@@ -142,14 +142,86 @@ router.get('/detail/:formId', authenticateToken, async (req, res, next) => {
        FROM ${DB_TABLES.PAATH_PAYMENTS} WHERE paath_form_id = $1 ORDER BY installment_number ASC`,
       [formId]
     );
+    const payments = await pool.query(
+      `SELECT payment_id, amount, status, metadata, completed_at, created_at
+       FROM ${DB_TABLES.PAYMENTS}
+       WHERE user_id = $1
+         AND type = 'paath'
+         AND metadata->>'formId' = $2
+       ORDER BY COALESCE(completed_at, created_at) DESC, created_at DESC`,
+      [authUserId, formId]
+    );
+
+    const totalInstallments = parseInt(row.installments || 1, 10);
+    const totalAmount = row.total_amount ? parseFloat(row.total_amount) : 0;
+
+    const installmentByNumber = new Map();
+    inst.rows.forEach((i) => {
+      installmentByNumber.set(i.installment_number, i);
+    });
+
+    const paidInstallments = [];
+    for (let n = 1; n <= totalInstallments; n += 1) {
+      const i = installmentByNumber.get(n);
+      if (i && (i.status || 'pending') === 'completed') {
+        paidInstallments.push(i);
+      }
+    }
+
+    const paidAmountRaw = paidInstallments.reduce(
+      (sum, i) => sum + (i.amount ? parseFloat(i.amount) : 0),
+      0
+    );
+    const paidAmount = Math.min(totalAmount, Math.max(0, paidAmountRaw));
+    const remainingAmount = Math.max(0, totalAmount - paidAmount);
+
+    const pendingNumbers = [];
+    for (let n = 1; n <= totalInstallments; n += 1) {
+      const i = installmentByNumber.get(n);
+      if (!i || (i.status || 'pending') !== 'completed') {
+        pendingNumbers.push(n);
+      }
+    }
+
+    const pendingCount = pendingNumbers.length;
+    const pendingAmounts = new Map();
+    if (pendingCount > 0) {
+      const base = Math.floor((remainingAmount / pendingCount) * 100) / 100;
+      let allocated = 0;
+
+      pendingNumbers.forEach((num, idx) => {
+        const amt = idx === pendingCount - 1
+          ? Math.max(0, Math.round((remainingAmount - allocated) * 100) / 100)
+          : base;
+        pendingAmounts.set(num, amt);
+        allocated += amt;
+      });
+    }
+
+    const installmentDetails = [];
+    for (let n = 1; n <= totalInstallments; n += 1) {
+      const i = installmentByNumber.get(n);
+      const status = i?.status || 'pending';
+      installmentDetails.push({
+        installmentNumber: n,
+        amount: status === 'completed'
+          ? (i?.amount ? parseFloat(i.amount) : 0)
+          : (pendingAmounts.get(n) || 0),
+        status,
+        paymentId: i?.payment_id || null,
+        paymentDate: i?.payment_date ? new Date(i.payment_date).toISOString() : null,
+      });
+    }
 
     return res.json({
       id: row.id,
       serviceId: row.service_id,
       serviceName: row.service_name,
-      totalAmount: row.total_amount ? parseFloat(row.total_amount) : null,
-      installments: row.installments,
-      installmentAmount: row.installment_amount ? parseFloat(row.installment_amount) : null,
+      totalAmount,
+      installments: totalInstallments,
+      installmentAmount: pendingCount > 0
+        ? (Math.floor((remainingAmount / pendingCount) * 100) / 100)
+        : 0,
       name: row.name,
       dateOfBirth: row.date_of_birth,
       timeOfBirth: row.time_of_birth,
@@ -157,7 +229,7 @@ router.get('/detail/:formId', authenticateToken, async (req, res, next) => {
       fathersOrHusbandsName: row.fathers_or_husbands_name,
       gotra: row.gotra,
       caste: row.caste,
-      paymentStatus: row.payment_status,
+      paymentStatus: remainingAmount <= 0 ? 'completed' : (paidAmount > 0 ? 'partial' : 'pending'),
       paathStatus: row.paath_status || 'pending',
       paathDoneDate: row.paath_done_date ? row.paath_done_date.toISOString().split('T')[0] : null,
       createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
@@ -169,13 +241,24 @@ router.get('/detail/:formId', authenticateToken, async (req, res, next) => {
         placeOfBirth: m.place_of_birth,
         relationship: m.relationship,
       })),
-      installmentDetails: inst.rows.map((i) => ({
-        installmentNumber: i.installment_number,
-        amount: i.amount ? parseFloat(i.amount) : null,
-        status: i.status || 'pending',
-        paymentId: i.payment_id,
-        paymentDate: i.payment_date ? new Date(i.payment_date).toISOString() : null,
-      })),
+      paymentHistory: payments.rows.map((payment) => {
+        const metadata = payment.metadata || {};
+        const rawInstallmentNumber = metadata.installmentNumber;
+        const installmentNumber = rawInstallmentNumber != null
+          ? parseInt(rawInstallmentNumber, 10)
+          : null;
+
+        return {
+          paymentId: payment.payment_id,
+          amount: payment.amount ? parseFloat(payment.amount) : 0,
+          status: payment.status || 'completed',
+          installmentNumber: Number.isNaN(installmentNumber) ? null : installmentNumber,
+          payRemainingInFull: metadata.payRemainingInFull === 'true' || metadata.payRemainingInFull === true,
+          completedAt: payment.completed_at ? new Date(payment.completed_at).toISOString() : null,
+          createdAt: payment.created_at ? new Date(payment.created_at).toISOString() : null,
+        };
+      }),
+      installmentDetails,
     });
   } catch (err) {
     next(err);

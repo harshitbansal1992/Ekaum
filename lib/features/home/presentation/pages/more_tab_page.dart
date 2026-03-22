@@ -174,6 +174,7 @@ class MoreTabPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final user = ref.watch(authProvider).user;
 
     return CustomScrollView(
       slivers: [
@@ -183,7 +184,7 @@ class MoreTabPage extends ConsumerWidget {
             child: Row(
               children: [
                 Text(
-                  AppLocalizations.of(context)!.more,
+                  'My Account',
                   style: theme.textTheme.headlineSmall?.copyWith(
                     color: AppTheme.textDark,
                     fontWeight: FontWeight.w600,
@@ -199,40 +200,189 @@ class MoreTabPage extends ConsumerWidget {
             child: GlassCard(
               padding: const EdgeInsets.all(20),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryGold.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppTheme.primaryGold.withValues(alpha: 0.16),
+                          Colors.white.withValues(alpha: 0.6),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      child: const Icon(Icons.person_outline, color: AppTheme.primaryGold),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppTheme.primaryGold.withValues(alpha: 0.22),
+                      ),
                     ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 60,
+                          height: 60,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppTheme.primaryGold.withValues(alpha: 0.25),
+                            ),
+                          ),
+                          child: Text(
+                            (user?.name?.trim().isNotEmpty == true
+                                    ? user!.name!.trim().substring(0, 1)
+                                    : 'D')
+                                .toUpperCase(),
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              color: AppTheme.primaryGold,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  'Devotee profile',
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: AppTheme.primaryGold,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                user?.name?.trim().isNotEmpty == true
+                                    ? user!.name!
+                                    : AppLocalizations.of(context)!.devotee,
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  color: AppTheme.textDark,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                user?.email?.trim().isNotEmpty == true
+                                    ? user!.email
+                                    : 'Update your profile details',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: AppTheme.textDim,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _QuickActionCard(
+                          icon: Icons.edit_outlined,
+                          title: AppLocalizations.of(context)!.editProfile,
+                          subtitle: 'Personal details',
+                          accentColor: AppTheme.primaryGold,
+                          onTap: () => context.push('/edit-profile'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _QuickActionCard(
+                          icon: Icons.volunteer_activism,
+                          title: 'My Paath',
+                          subtitle: 'Bookings & status',
+                          accentColor: Colors.green,
+                          onTap: () => context.push('/paath-details'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            child: GlassCard(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Settings',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryGold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.language, color: AppTheme.primaryGold),
                     title: Text(
-                      AppLocalizations.of(context)!.profile,
+                      AppLocalizations.of(context)!.language,
                       style: theme.textTheme.titleMedium?.copyWith(
                         color: AppTheme.textDark,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    subtitle: Text(
-                      AppLocalizations.of(context)!.editProfile,
-                      style: theme.textTheme.bodySmall?.copyWith(color: AppTheme.textDim),
+                    trailing: Consumer(
+                      builder: (_, ref, __) => Text(
+                        ref.watch(localeProvider)?.displayName ?? AppLocalizations.of(context)!.english,
+                        style: const TextStyle(color: AppTheme.textDim, fontSize: 14),
+                      ),
                     ),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: AppTheme.primaryGold),
-                    onTap: () => showProfileDialog(context, ref),
+                    onTap: () => _showLanguageSelector(context, ref),
                   ),
                   const Divider(height: 1),
                   ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.palette_outlined, color: AppTheme.primaryGold),
+                    title: Text(
+                      AppLocalizations.of(context)!.appTheme,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: AppTheme.textDark,
+                        fontWeight: FontWeight.w600,
                       ),
-                      child: const Icon(Icons.email_outlined, color: Colors.blue),
                     ),
+                    trailing: Consumer(
+                      builder: (_, ref, __) => Text(
+                        ref.watch(themeModeProvider).displayName,
+                        style: const TextStyle(color: AppTheme.textDim, fontSize: 14),
+                      ),
+                    ),
+                    onTap: () => _showThemeSelector(context, ref),
+                  ),
+                  const SizedBox(height: 20),
+                  const Divider(height: 1),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Support',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryGold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.email_outlined, color: Colors.blue),
                     title: Text(
                       AppLocalizations.of(context)!.emailForQueries,
                       style: theme.textTheme.titleMedium?.copyWith(
@@ -250,24 +400,12 @@ class MoreTabPage extends ConsumerWidget {
                       if (await canLaunchUrl(url)) await launchUrl(url);
                     },
                   ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            child: GlassCard(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                  const SizedBox(height: 20),
                   Text(
-                    AppLocalizations.of(context)!.watchOurYouTube,
-                    style: theme.textTheme.titleMedium?.copyWith(
+                    'Follow us',
+                    style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.textDark,
+                      color: AppTheme.primaryGold,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -300,6 +438,22 @@ class MoreTabPage extends ConsumerWidget {
                         onTap: () => _openUrl(context, AppConstants.xUrl),
                       ),
                     ],
+                  ),
+                  const Divider(height: 32),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.logout, color: AppTheme.errorColor),
+                    title: Text(
+                      AppLocalizations.of(context)!.signOut,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: AppTheme.textDark,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    onTap: () async {
+                      await ref.read(authProvider.notifier).signOut();
+                      if (context.mounted) context.go('/login');
+                    },
                   ),
                 ],
               ),
@@ -344,6 +498,71 @@ class _SocialIconButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, color: color, size: 32),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickActionCard extends StatelessWidget {
+  const _QuickActionCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.accentColor,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color accentColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: accentColor.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: accentColor.withValues(alpha: 0.14)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: accentColor, size: 20),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: AppTheme.textDark,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppTheme.textDim,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

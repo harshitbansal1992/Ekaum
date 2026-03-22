@@ -11,6 +11,7 @@ class PaathForm {
   final String? paathDoneDate;
   final String? createdAt;
   final List<PaathInstallment>? installmentDetails;
+  final List<PaathPaymentRecord>? paymentHistory;
   final List<PaathFamilyMember>? familyMembers;
 
   PaathForm({
@@ -25,11 +26,13 @@ class PaathForm {
     this.paathDoneDate,
     this.createdAt,
     this.installmentDetails,
+    this.paymentHistory,
     this.familyMembers,
   });
 
   factory PaathForm.fromJson(Map<String, dynamic> json) {
     final instList = json['installmentDetails'] as List<dynamic>?;
+    final paymentList = json['paymentHistory'] as List<dynamic>?;
     final fmList = json['familyMembers'] as List<dynamic>?;
     return PaathForm(
       id: json['id'] as String,
@@ -44,6 +47,9 @@ class PaathForm {
       createdAt: json['createdAt'] as String?,
       installmentDetails: instList
           ?.map((e) => PaathInstallment.fromJson(e as Map<String, dynamic>))
+          .toList(),
+        paymentHistory: paymentList
+          ?.map((e) => PaathPaymentRecord.fromJson(e as Map<String, dynamic>))
           .toList(),
       familyMembers: fmList
           ?.map((e) => PaathFamilyMember.fromJson(e as Map<String, dynamic>))
@@ -93,6 +99,40 @@ class PaathInstallment {
   }
 
   bool get isPaid => status == 'completed';
+}
+
+class PaathPaymentRecord {
+  final String paymentId;
+  final double amount;
+  final String status;
+  final int? installmentNumber;
+  final bool payRemainingInFull;
+  final String? completedAt;
+  final String? createdAt;
+
+  PaathPaymentRecord({
+    required this.paymentId,
+    required this.amount,
+    required this.status,
+    this.installmentNumber,
+    required this.payRemainingInFull,
+    this.completedAt,
+    this.createdAt,
+  });
+
+  factory PaathPaymentRecord.fromJson(Map<String, dynamic> json) {
+    return PaathPaymentRecord(
+      paymentId: json['paymentId'] as String? ?? '',
+      amount: (json['amount'] as num?)?.toDouble() ?? 0,
+      status: json['status'] as String? ?? 'completed',
+      installmentNumber: (json['installmentNumber'] as num?)?.toInt(),
+      payRemainingInFull: json['payRemainingInFull'] as bool? ?? false,
+      completedAt: json['completedAt'] as String?,
+      createdAt: json['createdAt'] as String?,
+    );
+  }
+
+  bool get isCompleted => status == 'completed';
 }
 
 class PaathFamilyMember {

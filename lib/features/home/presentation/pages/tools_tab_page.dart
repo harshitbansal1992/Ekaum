@@ -43,7 +43,7 @@ class ToolsTabPage extends ConsumerWidget {
                       AppLocalizations.of(context)!.kundliLite,
                       AppLocalizations.of(context)!.kundliLiteDescription,
                       Icons.auto_awesome,
-                      '/kundli-lite',
+                      () => context.push('/kundli-lite'),
                     ));
                   }
                   if (flags['feature_nadi_dosh_enabled'] ?? true) {
@@ -52,7 +52,7 @@ class ToolsTabPage extends ConsumerWidget {
                       AppLocalizations.of(context)!.nadiDosh,
                       'Check Nadi compatibility',
                       Icons.calculate_outlined,
-                      '/nadi-dosh',
+                      () => context.push('/nadi-dosh-web'),
                     ));
                   }
                   if (flags['feature_rahu_kaal_enabled'] ?? true) {
@@ -61,7 +61,7 @@ class ToolsTabPage extends ConsumerWidget {
                       AppLocalizations.of(context)!.rahuKaal,
                       'Rahu Kaal, Sandhya Kaal timings',
                       Icons.access_time,
-                      '/rahu-kaal',
+                      () => context.push('/rahu-kaal'),
                     ));
                   }
                   if (flags['feature_avdhan_enabled'] ?? true) {
@@ -70,7 +70,7 @@ class ToolsTabPage extends ConsumerWidget {
                       AppLocalizations.of(context)!.avdhan,
                       'Spiritual audio content',
                       Icons.headphones,
-                      '/avdhan',
+                      () => context.push('/avdhan'),
                     ));
                   }
                   if (flags['feature_video_satsang_enabled'] ?? true) {
@@ -79,7 +79,7 @@ class ToolsTabPage extends ConsumerWidget {
                       AppLocalizations.of(context)!.videoSatsang,
                       'YouTube satsang videos',
                       Icons.video_library,
-                      '/video-satsang',
+                      () => context.push('/video-satsang'),
                     ));
                   }
                   if (items.isEmpty) return const SizedBox.shrink();
@@ -109,13 +109,13 @@ class ToolsTabPage extends ConsumerWidget {
     String title,
     String subtitle,
     IconData icon,
-    String route,
+    VoidCallback onTap,
   ) {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: GlassCard(
-        onTap: () => context.push(route),
+        onTap: onTap,
         padding: const EdgeInsets.all(20),
         child: Row(
           children: [

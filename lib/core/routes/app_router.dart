@@ -5,9 +5,14 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
-import '../../features/home/presentation/pages/main_shell_page.dart';
+import '../../features/home/presentation/pages/home_tab_page.dart';
+import '../../features/home/presentation/pages/tools_tab_page.dart';
+import '../../features/home/presentation/pages/services_tab_page.dart';
+import '../../features/home/presentation/pages/more_tab_page.dart';
+import '../../features/home/presentation/widgets/persistent_footer_shell.dart';
 import '../../features/home/presentation/pages/edit_profile_page.dart';
 import '../../features/nadi_dosh/presentation/pages/nadi_dosh_page.dart';
+import '../../features/nadi_dosh/presentation/pages/nadi_dosh_web_page.dart';
 import '../../features/kundli_lite/presentation/pages/kundli_lite_page.dart';
 import '../../features/rahu_kaal/presentation/pages/rahu_kaal_page.dart';
 import '../../features/avdhan/presentation/pages/avdhan_list_page.dart';
@@ -92,137 +97,161 @@ class AppRouter {
         path: '/register',
         builder: (context, state) => const RegisterPage(),
       ),
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const MainShellPage(),
-      ),
-      GoRoute(
-        path: '/edit-profile',
-        builder: (context, state) => const EditProfilePage(),
-      ),
-      GoRoute(
-        path: '/nadi-dosh',
-        builder: (context, state) => const NadiDoshPage(),
-      ),
-      GoRoute(
-        path: '/kundli-lite',
-        builder: (context, state) => const KundliLitePage(),
-      ),
-      GoRoute(
-        path: '/rahu-kaal',
-        builder: (context, state) => const RahuKaalPage(),
-      ),
-      GoRoute(
-        path: '/avdhan',
-        builder: (context, state) => const AvdhanListPage(),
-      ),
-      GoRoute(
-        path: '/avdhan/:id',
-        builder: (context, state) {
-          final audio = state.extra as AvdhanAudio;
-          return AvdhanPlayerPage(audio: audio);
-        },
-      ),
-      GoRoute(
-        path: '/samagam',
-        builder: (context, state) => const SamagamListPage(),
-      ),
-      GoRoute(
-        path: '/patrika',
-        builder: (context, state) => const PatrikaListPage(),
-      ),
-      GoRoute(
-        path: '/patrika/:id',
-        builder: (context, state) {
-          final issue = state.extra as PatrikaIssue;
-          return PatrikaViewerPage(issue: issue);
-        },
-      ),
-      GoRoute(
-        path: '/pooja-items',
-        builder: (context, state) => const PoojaItemsPage(),
-      ),
-      GoRoute(
-        path: '/paath-services',
-        builder: (context, state) => const PaathServicesPage(),
-      ),
-      GoRoute(
-        path: '/paath-form',
-        builder: (context, state) {
-          final service = state.extra as PaathService;
-          return PaathFormPage(service: service);
-        },
-      ),
-      GoRoute(
-        path: '/paath-details',
-        builder: (context, state) => const PaathDetailsPage(),
-      ),
-      GoRoute(
-        path: '/paath-details/:id',
-        builder: (context, state) {
-          final formId = state.pathParameters['id']!;
-          return PaathFormDetailPage(formId: formId);
-        },
-      ),
-      GoRoute(
-        path: '/donation',
-        builder: (context, state) => const DonationPage(),
-      ),
-      GoRoute(
-        path: '/search',
-        builder: (context, state) => const SearchPage(),
-      ),
-      GoRoute(
-        path: '/video-satsang',
-        builder: (context, state) => const VideoSatsangListPage(),
-      ),
-      GoRoute(
-        path: '/video-satsang/:id',
-        builder: (context, state) {
-          final video = state.extra as VideoSatsangItem;
-          return VideoSatsangDetailPage(video: video);
-        },
-      ),
-      GoRoute(
-        path: '/social-activities',
-        builder: (context, state) => const SocialActivitiesPage(),
-      ),
-      GoRoute(
-        path: '/blog',
-        builder: (context, state) => const BlogPage(),
-      ),
-      GoRoute(
-        path: '/bslnd-centers',
-        builder: (context, state) => const BslndCentersPage(),
-      ),
-      GoRoute(
-        path: '/mantra-notes',
-        builder: (context, state) => const MantraNotesListPage(),
-      ),
-      GoRoute(
-        path: '/mantra-notes/new',
-        builder: (context, state) => const MantraNoteFormPage(),
-      ),
-      GoRoute(
-        path: '/mantra-notes/:id',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          final note = state.extra is MantraNote ? state.extra as MantraNote : null;
-          return MantraNoteFormPage(noteId: id == 'new' ? null : id, existingNote: note);
-        },
-      ),
-      GoRoute(
-        path: '/payment/:type',
-        builder: (context, state) {
-          final type = state.pathParameters['type'] ?? 'unknown';
-          final paymentId = state.uri.queryParameters['payment_id'];
-          final status = state.uri.queryParameters['payment_status'];
-          return PaymentStatusPage(
-            paymentType: type,
-            paymentId: paymentId,
-            status: status,
-          );
-        },
+      ShellRoute(
+        builder: (context, state, child) => PersistentFooterShell(
+          location: state.matchedLocation,
+          child: child,
+        ),
+        routes: [
+          GoRoute(
+            path: '/home',
+            builder: (context, state) => const HomeTabPage(),
+          ),
+          GoRoute(
+            path: '/tools',
+            builder: (context, state) => const ToolsTabPage(),
+          ),
+          GoRoute(
+            path: '/services-tab',
+            builder: (context, state) => const ServicesTabPage(),
+          ),
+          GoRoute(
+            path: '/more',
+            builder: (context, state) => const MoreTabPage(),
+          ),
+          GoRoute(
+            path: '/edit-profile',
+            builder: (context, state) => const EditProfilePage(),
+          ),
+          GoRoute(
+            path: '/nadi-dosh',
+            builder: (context, state) => const NadiDoshPage(),
+          ),
+          GoRoute(
+            path: '/nadi-dosh-web',
+            builder: (context, state) => const NadiDoshWebPage(),
+          ),
+          GoRoute(
+            path: '/kundli-lite',
+            builder: (context, state) => const KundliLitePage(),
+          ),
+          GoRoute(
+            path: '/rahu-kaal',
+            builder: (context, state) => const RahuKaalPage(),
+          ),
+          GoRoute(
+            path: '/avdhan',
+            builder: (context, state) => const AvdhanListPage(),
+          ),
+          GoRoute(
+            path: '/avdhan/:id',
+            builder: (context, state) {
+              final audio = state.extra as AvdhanAudio;
+              return AvdhanPlayerPage(audio: audio);
+            },
+          ),
+          GoRoute(
+            path: '/samagam',
+            builder: (context, state) => const SamagamListPage(),
+          ),
+          GoRoute(
+            path: '/patrika',
+            builder: (context, state) => const PatrikaListPage(),
+          ),
+          GoRoute(
+            path: '/patrika/:id',
+            builder: (context, state) {
+              final issue = state.extra as PatrikaIssue;
+              return PatrikaViewerPage(issue: issue);
+            },
+          ),
+          GoRoute(
+            path: '/pooja-items',
+            builder: (context, state) => const PoojaItemsPage(),
+          ),
+          GoRoute(
+            path: '/paath-services',
+            builder: (context, state) => const PaathServicesPage(),
+          ),
+          GoRoute(
+            path: '/paath-form',
+            builder: (context, state) {
+              final service = state.extra as PaathService;
+              return PaathFormPage(service: service);
+            },
+          ),
+          GoRoute(
+            path: '/paath-details',
+            builder: (context, state) => const PaathDetailsPage(),
+          ),
+          GoRoute(
+            path: '/paath-details/:id',
+            builder: (context, state) {
+              final formId = state.pathParameters['id']!;
+              return PaathFormDetailPage(formId: formId);
+            },
+          ),
+          GoRoute(
+            path: '/donation',
+            builder: (context, state) => const DonationPage(),
+          ),
+          GoRoute(
+            path: '/search',
+            builder: (context, state) => const SearchPage(),
+          ),
+          GoRoute(
+            path: '/video-satsang',
+            builder: (context, state) => const VideoSatsangListPage(),
+          ),
+          GoRoute(
+            path: '/video-satsang/:id',
+            builder: (context, state) {
+              final video = state.extra as VideoSatsangItem;
+              return VideoSatsangDetailPage(video: video);
+            },
+          ),
+          GoRoute(
+            path: '/social-activities',
+            builder: (context, state) => const SocialActivitiesPage(),
+          ),
+          GoRoute(
+            path: '/blog',
+            builder: (context, state) => const BlogPage(),
+          ),
+          GoRoute(
+            path: '/bslnd-centers',
+            builder: (context, state) => const BslndCentersPage(),
+          ),
+          GoRoute(
+            path: '/mantra-notes',
+            builder: (context, state) => const MantraNotesListPage(),
+          ),
+          GoRoute(
+            path: '/mantra-notes/new',
+            builder: (context, state) => const MantraNoteFormPage(),
+          ),
+          GoRoute(
+            path: '/mantra-notes/:id',
+            builder: (context, state) {
+              final id = state.pathParameters['id']!;
+              final note = state.extra is MantraNote ? state.extra as MantraNote : null;
+              return MantraNoteFormPage(noteId: id == 'new' ? null : id, existingNote: note);
+            },
+          ),
+          GoRoute(
+            path: '/payment/:type',
+            builder: (context, state) {
+              final type = state.pathParameters['type'] ?? 'unknown';
+              final paymentId = state.uri.queryParameters['payment_id'];
+              final status = state.uri.queryParameters['payment_status'];
+              return PaymentStatusPage(
+                paymentType: type,
+                paymentId: paymentId,
+                status: status,
+              );
+            },
+          ),
+        ],
       ),
     ],
     );

@@ -98,7 +98,7 @@ class _PaymentStatusPageState extends ConsumerState<PaymentStatusPage> {
                         context.go('/patrika');
                         break;
                       case 'paath':
-                        context.go('/paath-services');
+                        context.go('/paath-details');
                         break;
                       case 'donation':
                         context.go('/home');

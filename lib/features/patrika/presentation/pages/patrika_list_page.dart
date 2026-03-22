@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/services/api_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../home/data/models/favourite_item.dart';
 import '../../../home/presentation/providers/favourites_provider.dart';
 import '../../data/models/patrika_issue.dart';
@@ -17,6 +18,7 @@ class PatrikaListPage extends ConsumerStatefulWidget {
 
 class _PatrikaListPageState extends ConsumerState<PatrikaListPage> {
   List<PatrikaIssue> _issues = [];
+  Set<String> _purchasedIssueIds = <String>{};
   bool _isLoading = true;
   String? _error;
 
@@ -39,8 +41,16 @@ class _PatrikaListPageState extends ConsumerState<PatrikaListPage> {
         return PatrikaIssue.fromJson(json);
       }).toList();
 
+      final userId = ref.read(authProvider).user?.id;
+      Set<String> purchasedIds = <String>{};
+      if (userId != null) {
+        final purchases = await ApiService.getPatrikaPurchases(userId);
+        purchasedIds = purchases.map((e) => e.toString()).toSet();
+      }
+
       setState(() {
         _issues = issues;
+        _purchasedIssueIds = purchasedIds;
         _isLoading = false;
       });
     } catch (e) {
@@ -79,13 +89,27 @@ class _PatrikaListPageState extends ConsumerState<PatrikaListPage> {
                       itemCount: _issues.length,
                       itemBuilder: (context, index) {
                         final issue = _issues[index];
+                        final isPurchased = _purchasedIssueIds.contains(issue.id);
                         return Card(
                           margin: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 8,
                           ),
+                          color: isPurchased ? const Color(0xFFEAFBF1) : null,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            side: BorderSide(
+                              color: isPurchased
+                                  ? const Color(0xFF8ED8A8)
+                                  : Colors.transparent,
+                            ),
+                          ),
                           child: ListTile(
-                            leading: const Icon(Icons.menu_book, size: 40),
+                            leading: Icon(
+                              Icons.menu_book,
+                              size: 40,
+                              color: isPurchased ? const Color(0xFF1E8E3E) : null,
+                            ),
                             title: Text(issue.title),
                             subtitle: Text('${issue.month} ${issue.year}'),
                             trailing: Row(
@@ -121,7 +145,24 @@ class _PatrikaListPageState extends ConsumerState<PatrikaListPage> {
                                       '₹${issue.price.toInt()}',
                                       style: Theme.of(context).textTheme.titleMedium,
                                     ),
-                                    const Text('Read', style: TextStyle(fontSize: 12)),
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: isPurchased
+                                            ? const Color(0xFFD5F5E3)
+                                            : Theme.of(context).colorScheme.surfaceContainerHighest,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        isPurchased ? 'Purchased' : 'Not purchased',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: isPurchased ? const Color(0xFF1E8E3E) : AppTheme.textDim,
+                                        ),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ],

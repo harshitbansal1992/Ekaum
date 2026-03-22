@@ -188,30 +188,76 @@ router.post('/verify', authenticateToken, async (req, res, next) => {
       case PAYMENT_TYPES.PAATH: {
         const formId = notes.formId;
         const installmentNumber = parseInt(notes.installmentNumber, 10);
+        const payRemainingInFull = notes.payRemainingInFull === 'true' || notes.payRemainingInFull === true;
         if (formId && !Number.isNaN(installmentNumber)) {
-          await pool.query(
-            `INSERT INTO ${DB_TABLES.PAATH_PAYMENTS} (paath_form_id, installment_number, amount, payment_id, status, payment_date)
-             VALUES ($1, $2, $3, $4, 'completed', NOW())
-             ON CONFLICT (paath_form_id, installment_number) DO UPDATE SET
-               payment_id = EXCLUDED.payment_id,
-               status = 'completed',
-               payment_date = NOW()`,
-            [formId, installmentNumber, amount, paymentId]
-          );
+          if (payRemainingInFull) {
+            const formRow = await pool.query(
+              `SELECT installments, installment_amount, total_amount FROM ${DB_TABLES.PAATH_FORMS} WHERE id = $1`,
+              [formId]
+            );
+            const totalInstallments = parseInt(formRow.rows[0]?.installments || 6, 10);
+            const totalAmount = parseFloat(formRow.rows[0]?.total_amount || 0);
 
-          // Check if all installments paid, update form status
-          const allPaid = await pool.query(
-            `SELECT COUNT(*) as paid FROM ${DB_TABLES.PAATH_PAYMENTS}
+            const paidRows = await pool.query(
+              `SELECT COALESCE(SUM(amount), 0) AS paid_amount
+               FROM ${DB_TABLES.PAATH_PAYMENTS}
+               WHERE paath_form_id = $1 AND status = 'completed'`,
+              [formId]
+            );
+            const alreadyPaidAmount = parseFloat(paidRows.rows[0]?.paid_amount || 0);
+            const remainingAmount = Math.max(0, totalAmount - alreadyPaidAmount);
+
+            const remainingCount = Math.max(1, totalInstallments - installmentNumber + 1);
+            const baseAmount = Math.floor((remainingAmount / remainingCount) * 100) / 100;
+            let allocated = 0;
+
+            for (let n = installmentNumber; n <= totalInstallments; n += 1) {
+              const isLast = n === totalInstallments;
+              const currentAmount = isLast
+                ? Math.max(0, Math.round((remainingAmount - allocated) * 100) / 100)
+                : baseAmount;
+              allocated += currentAmount;
+
+              await pool.query(
+                `INSERT INTO ${DB_TABLES.PAATH_PAYMENTS} (paath_form_id, installment_number, amount, payment_id, status, payment_date)
+                 VALUES ($1, $2, $3, $4, 'completed', NOW())
+                 ON CONFLICT (paath_form_id, installment_number) DO UPDATE SET
+                   payment_id = EXCLUDED.payment_id,
+                   status = 'completed',
+                   amount = EXCLUDED.amount,
+                   payment_date = NOW()`,
+                [formId, n, currentAmount, paymentId]
+              );
+            }
+          } else {
+            await pool.query(
+              `INSERT INTO ${DB_TABLES.PAATH_PAYMENTS} (paath_form_id, installment_number, amount, payment_id, status, payment_date)
+               VALUES ($1, $2, $3, $4, 'completed', NOW())
+               ON CONFLICT (paath_form_id, installment_number) DO UPDATE SET
+                 payment_id = EXCLUDED.payment_id,
+                 status = 'completed',
+                 amount = EXCLUDED.amount,
+                 payment_date = NOW()`,
+              [formId, installmentNumber, amount, paymentId]
+            );
+          }
+
+          // Check amount paid and update form payment status
+          const paidAmountRow = await pool.query(
+            `SELECT COALESCE(SUM(amount), 0) AS paid_amount
+             FROM ${DB_TABLES.PAATH_PAYMENTS}
              WHERE paath_form_id = $1 AND status = 'completed'`,
             [formId]
           );
-          const totalCount = await pool.query(
-            `SELECT installments FROM ${DB_TABLES.PAATH_FORMS} WHERE id = $1`,
+          const formTotalRow = await pool.query(
+            `SELECT total_amount FROM ${DB_TABLES.PAATH_FORMS} WHERE id = $1`,
             [formId]
           );
-          const paid = parseInt(allPaid.rows[0]?.paid || 0, 10);
-          const total = parseInt(totalCount.rows[0]?.installments || 6, 10);
-          const newStatus = paid >= total ? 'completed' : 'partial';
+          const paidAmount = parseFloat(paidAmountRow.rows[0]?.paid_amount || 0);
+          const totalAmount = parseFloat(formTotalRow.rows[0]?.total_amount || 0);
+          const newStatus = paidAmount >= totalAmount
+            ? 'completed'
+            : paidAmount > 0 ? 'partial' : 'pending';
 
           await pool.query(
             `UPDATE ${DB_TABLES.PAATH_FORMS} SET payment_status = $1, updated_at = NOW() WHERE id = $2`,

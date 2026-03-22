@@ -123,6 +123,7 @@ class KundliLitePage extends ConsumerWidget {
               _NadiCard(
                 dateOfBirth: user.dateOfBirth!,
                 timeOfBirth: user.timeOfBirth!,
+                placeOfBirth: user.placeOfBirth as String? ?? '',
                 theme: theme,
                 l10n: l10n,
               ),
@@ -226,12 +227,14 @@ class _DetailRow extends StatelessWidget {
 class _NadiCard extends StatelessWidget {
   final DateTime dateOfBirth;
   final String timeOfBirth;
+  final String placeOfBirth;
   final ThemeData theme;
   final AppLocalizations l10n;
 
   const _NadiCard({
     required this.dateOfBirth,
     required this.timeOfBirth,
+    required this.placeOfBirth,
     required this.theme,
     required this.l10n,
   });
@@ -241,7 +244,7 @@ class _NadiCard extends StatelessWidget {
     final nadiResult = NadiDoshService.calculateNadiDosh(
       birthDate: dateOfBirth,
       birthTime: timeOfBirth,
-      birthPlace: '',
+      birthPlace: placeOfBirth,
     );
     final nadiType = nadiResult['nadiType'] as String? ?? '—';
 

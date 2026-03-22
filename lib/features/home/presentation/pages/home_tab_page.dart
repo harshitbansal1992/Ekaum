@@ -15,7 +15,6 @@ import '../../../video_satsang/data/models/video_satsang_item.dart';
 import '../providers/home_settings_provider.dart';
 import '../providers/favourites_provider.dart';
 import '../../data/models/favourite_item.dart';
-import 'more_tab_page.dart';
 
 /// Home tab: Favourites first, then hero, panchang, daily ekaum, announcements, upcoming samagams
 class HomeTabPage extends ConsumerWidget {
@@ -97,13 +96,6 @@ class HomeTabPage extends ConsumerWidget {
                   padding: const EdgeInsets.all(8),
                   onTap: () => context.push('/search'),
                   child: const Icon(Icons.search, color: AppTheme.primaryGold),
-                ),
-                const SizedBox(width: 8),
-                GlassCard(
-                  borderRadius: 50,
-                  padding: const EdgeInsets.all(8),
-                  onTap: () => MoreTabPage.showProfileDialog(context, ref),
-                  child: const Icon(Icons.person_outline, color: AppTheme.primaryGold),
                 ),
               ],
             ),

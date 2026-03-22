@@ -58,11 +58,11 @@ router.get('/upcoming', async (req, res, next) => {
 
 /**
  * GET /api/samagam
- * List all samagam events (for full list page)
+ * List upcoming samagam events (for full list page)
  */
 router.get('/', async (req, res, next) => {
   try {
-    const cacheKey = 'samagam:all';
+    const cacheKey = 'samagam:upcoming:all';
     const cached = cacheGet(cacheKey);
     if (cached !== undefined) {
       return res.json(cached);
@@ -71,7 +71,8 @@ router.get('/', async (req, res, next) => {
     const r = await pool.query(
       `SELECT id, title, description, start_date, end_date, location, address, image_url, google_maps_url, created_at
        FROM ${DB_TABLES.SAMAGAM}
-       ORDER BY start_date DESC`
+       WHERE start_date > CURRENT_DATE
+       ORDER BY start_date ASC`
     );
     const data = r.rows.map(rowToEvent);
     cacheSet(cacheKey, data, CACHE_TTL);
