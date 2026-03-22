@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/services/api_service.dart';
 import '../../data/models/samagam_event.dart';
@@ -130,14 +131,44 @@ class _SamagamListPageState extends State<SamagamListPage> {
                                       ),
                                     ),
                                   ],
+                                  if (event.googleMapsUrl != null &&
+                                      event.googleMapsUrl!.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    InkWell(
+                                      onTap: () => _openMaps(event.googleMapsUrl!),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.map, size: 16),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Open in Google Maps',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall
+                                                ?.copyWith(
+                                                  color: Colors.blue,
+                                                  decoration: TextDecoration.underline,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
                           );
                         },
                       ),
-                    ),
+                      ),
     );
+  }
+
+  Future<void> _openMaps(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 }
 

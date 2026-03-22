@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/services/api_service.dart';
-import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../home/data/models/favourite_item.dart';
+import '../../../home/presentation/providers/favourites_provider.dart';
 import '../../data/models/patrika_issue.dart';
-import '../pages/patrika_viewer_page.dart';
 
-class PatrikaListPage extends StatefulWidget {
+class PatrikaListPage extends ConsumerStatefulWidget {
   const PatrikaListPage({super.key});
 
   @override
-  State<PatrikaListPage> createState() => _PatrikaListPageState();
+  ConsumerState<PatrikaListPage> createState() => _PatrikaListPageState();
 }
 
-class _PatrikaListPageState extends State<PatrikaListPage> {
+class _PatrikaListPageState extends ConsumerState<PatrikaListPage> {
   List<PatrikaIssue> _issues = [];
   bool _isLoading = true;
   String? _error;
@@ -86,18 +88,41 @@ class _PatrikaListPageState extends State<PatrikaListPage> {
                             leading: const Icon(Icons.menu_book, size: 40),
                             title: Text(issue.title),
                             subtitle: Text('${issue.month} ${issue.year}'),
-                            trailing: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  '₹${issue.price.toInt()}',
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium,
+                                Consumer(
+                                  builder: (_, ref, __) {
+                                    final isFav = ref.watch(favouritesProvider).any((f) => f.type == 'patrika' && f.id == issue.id);
+                                    return IconButton(
+                                      icon: Icon(
+                                        isFav ? Icons.favorite : Icons.favorite_border,
+                                        color: isFav ? Colors.red : AppTheme.textDim,
+                                        size: 22,
+                                      ),
+                                      onPressed: () {
+                                        final item = FavouriteItem(
+                                          type: 'patrika',
+                                          id: issue.id,
+                                          title: issue.title,
+                                          subtitle: '${issue.month} ${issue.year}',
+                                          extra: issue.toJson(),
+                                        );
+                                        ref.read(favouritesProvider.notifier).toggle(item);
+                                      },
+                                    );
+                                  },
                                 ),
-                                const Text(
-                                  'Read',
-                                  style: TextStyle(fontSize: 12),
+                                Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      '₹${issue.price.toInt()}',
+                                      style: Theme.of(context).textTheme.titleMedium,
+                                    ),
+                                    const Text('Read', style: TextStyle(fontSize: 12)),
+                                  ],
                                 ),
                               ],
                             ),

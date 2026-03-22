@@ -8,7 +8,6 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/services/payment_handler.dart';
 import '../../data/models/paath_service.dart';
 import '../../data/models/paath_form_data.dart';
-import '../../data/models/paath_form_data.dart' show FamilyMember;
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/components/glass_card.dart';
 
@@ -27,6 +26,12 @@ class PaathFormPage extends ConsumerStatefulWidget {
 class _PaathFormPageState extends ConsumerState<PaathFormPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _installments = widget.service.installments.clamp(1, AppConstants.maxInstallments);
+  }
   final _dobController = TextEditingController();
   final _tobController = TextEditingController();
   final _pobController = TextEditingController();
@@ -35,7 +40,7 @@ class _PaathFormPageState extends ConsumerState<PaathFormPage> {
   final _casteController = TextEditingController();
   
   DateTime? _dateOfBirth;
-  int _installments = 1;
+  late int _installments;
   final List<Map<String, dynamic>> _familyMembers = [];
   bool _isSubmitting = false;
 
@@ -189,37 +194,99 @@ class _PaathFormPageState extends ConsumerState<PaathFormPage> {
                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 16),
-                    const Text('Payment in Installments', style: TextStyle(fontWeight: FontWeight.w500)),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Slider(
-                            value: _installments.toDouble(),
-                            min: 1,
-                            max: AppConstants.maxInstallments.toDouble(),
-                            divisions: AppConstants.maxInstallments - 1,
-                            label: '$_installments installments',
-                            onChanged: (value) {
-                              setState(() {
-                                _installments = value.toInt();
-                              });
-                            },
-                          ),
+                    if (widget.service.isOneTime)
+                      Text(
+                        'One-time payment: ₹${widget.service.price.toStringAsFixed(2)}',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: AppTheme.primaryGold,
+                          fontWeight: FontWeight.bold,
                         ),
-                        Text('$_installments', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    Text(
-                      'Per Installment: ₹${installmentAmount.toStringAsFixed(2)}',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppTheme.primaryGold,
-                        fontWeight: FontWeight.bold,
+                      )
+                    else ...[
+                      Text(
+                        'Payment in Installments (up to ${widget.service.installments})',
+                        style: const TextStyle(fontWeight: FontWeight.w500),
                       ),
-                    ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              value: _installments.toDouble(),
+                              min: 1,
+                              max: widget.service.installments.toDouble(),
+                              divisions: widget.service.installments > 1 ? widget.service.installments - 1 : 1,
+                              label: _installments == 1 ? 'One-time' : '$_installments installments',
+                              onChanged: (value) {
+                                setState(() {
+                                  _installments = value.toInt();
+                                });
+                              },
+                            ),
+                          ),
+                          Text(
+                            _installments == 1 ? 'One-time' : '$_installments',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        _installments == 1
+                            ? 'Full amount: ₹${installmentAmount.toStringAsFixed(2)}'
+                            : 'Per Installment: ₹${installmentAmount.toStringAsFixed(2)}',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: AppTheme.primaryGold,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
               const SizedBox(height: 16),
+              Builder(
+                builder: (context) {
+                  final user = ref.watch(authProvider).user;
+                  final hasProfileData = user != null &&
+                      (user.name != null && user.name!.isNotEmpty) &&
+                      user.dateOfBirth != null;
+                  if (!hasProfileData) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        final u = ref.read(authProvider).user;
+                        if (u == null) return;
+                        setState(() {
+                          _nameController.text = u.name ?? '';
+                          if (u.dateOfBirth != null) {
+                            _dateOfBirth = u.dateOfBirth;
+                            _dobController.text =
+                                DateFormat('yyyy-MM-dd').format(u.dateOfBirth!);
+                          }
+                          _tobController.text = u.timeOfBirth ?? '';
+                          _pobController.text = u.placeOfBirth ?? '';
+                          _fathersNameController.text =
+                              u.fathersOrHusbandsName ?? '';
+                          _gotraController.text = u.gotra ?? '';
+                          _casteController.text = u.caste ?? '';
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Details filled from your profile'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.person_search),
+                      label: const Text('Use my profile details'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.primaryGold,
+                        side: const BorderSide(color: AppTheme.primaryGold),
+                      ),
+                    ),
+                  );
+                },
+              ),
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(

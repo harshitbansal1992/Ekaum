@@ -190,6 +190,31 @@ class RahuKaalService {
     }
   }
 
+  /// Returns DateTime values for scheduling notifications (Rahu Kaal and Sandhya periods).
+  /// Caller uses these to schedule local notifications.
+  static Map<String, DateTime> getSchedulingTimes({
+    required double latitude,
+    required double longitude,
+    required DateTime date,
+  }) {
+    final sunrise = _calculateSunrise(date, latitude, longitude);
+    final sunset = _calculateSunset(date, latitude, longitude);
+    final noon = _calculateNoon(date, longitude);
+    final dayLengthSeconds = sunset.difference(sunrise).inSeconds;
+    final dayLengthEighth = dayLengthSeconds ~/ 8;
+    final dayOfWeek = date.weekday;
+    final rahuKaalStart = _calculateRahuKaalStart(sunrise, dayOfWeek, dayLengthEighth);
+    final pratahSandhyaStart = sunrise.subtract(const Duration(minutes: 90));
+    final madhyaSandhyaStart = noon.subtract(const Duration(minutes: 90));
+    final sayahnaSandhyaStart = sunset.subtract(const Duration(minutes: 90));
+    return {
+      'rahuKaal': rahuKaalStart,
+      'pratahSandhya': pratahSandhyaStart,
+      'madhyaSandhya': madhyaSandhyaStart,
+      'sayahnaSandhya': sayahnaSandhyaStart,
+    };
+  }
+
   static String _formatDate(DateTime date) {
     try {
       return DateFormat('d MMMM yyyy, EEEE').format(date);

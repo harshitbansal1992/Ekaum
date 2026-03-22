@@ -27,17 +27,23 @@ const ERROR_MESSAGES = {
 };
 
 const DB_TABLES = {
+  APP_SETTINGS: 'app_settings',
   USERS: 'users',
   SUBSCRIPTIONS: 'subscriptions',
   AVDHAN: 'avdhan',
   SAMAGAM: 'samagam',
   PATRIKA: 'patrika',
   PATRIKA_PURCHASES: 'patrika_purchases',
+  PAATH_SERVICES: 'paath_services',
   PAATH_FORMS: 'paath_forms',
   PAATH_FORM_FAMILY_MEMBERS: 'paath_form_family_members',
   PAATH_PAYMENTS: 'paath_payments',
   DONATIONS: 'donations',
   PAYMENTS: 'payments',
+  MANTRA_NOTES: 'mantra_notes',
+  ANNOUNCEMENTS: 'announcements',
+  VIDEO_SATSANG: 'video_satsang',
+  DONATION_SUBSCRIPTIONS: 'donation_subscriptions',
 };
 
 const JWT_CONFIG = {

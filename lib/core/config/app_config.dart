@@ -1,36 +1,26 @@
 // App Configuration
 // Initialize payment service and other configurations here
+//
+// Production: flutter build apk --dart-define=BACKEND_URL=https://api.yourdomain.com/api
+// Android emulator: flutter run --dart-define=BACKEND_URL=http://10.0.2.2:3000/api
 
 import '../services/payment_service.dart';
 
 class AppConfig {
-  // Initialize payment service with Instamojo credentials
-  // Get these from: https://www.instamojo.com/developers/
+  // Razorpay test credentials - replace with live keys for production
+  static const String razorpayKeyId = 'rzp_test_STczlMNUcWRhnZ';
+  // Note: key secret is used only on backend - never expose in app
+
+  /// Backend API base URL (including /api). Set via --dart-define=BACKEND_URL=... for production.
+  static String get backendApiBaseUrl =>
+      const String.fromEnvironment(
+        'BACKEND_URL',
+        defaultValue: 'http://localhost:3000/api',
+      );
+
+
+  // Initialize payment service with Razorpay key (key ID only - secret stays on server)
   static void initializePayment() {
-    // Payment service initialization
-    // Get credentials from: https://www.instamojo.com/developers/
-    // 
-    // For development, you can leave placeholders - payment features will show
-    // appropriate error messages when used without credentials
-    final apiKey = const String.fromEnvironment(
-      'INSTAMOJO_API_KEY',
-      defaultValue: 'YOUR_INSTAMOJO_API_KEY',
-    );
-    final authToken = const String.fromEnvironment(
-      'INSTAMOJO_AUTH_TOKEN',
-      defaultValue: 'YOUR_INSTAMOJO_AUTH_TOKEN',
-    );
-    
-    // Only initialize if credentials are provided
-    if (apiKey != 'YOUR_INSTAMOJO_API_KEY' && authToken != 'YOUR_INSTAMOJO_AUTH_TOKEN') {
-      PaymentService.initialize(apiKey, authToken);
-    }
-    // If credentials not set, payment service will throw helpful errors when used
+    PaymentService.initialize(razorpayKeyId);
   }
-
-  // Backend API URL
-  static const String backendUrl = 'https://your-backend-url.com';
-  
-  // Update webhook URLs in payment_service.dart to match your backend
 }
-

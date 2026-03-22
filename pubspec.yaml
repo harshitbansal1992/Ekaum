@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # State Management
   flutter_riverpod: ^2.4.9
@@ -22,6 +24,7 @@ dependencies:
   # Payment
   http: ^1.1.2
   dio: ^5.4.0
+  razorpay_flutter: ^1.3.5
 
   # WebView
   webview_flutter: ^4.4.2
@@ -35,14 +38,19 @@ dependencies:
   pdfx: ^2.9.2
 
   # UI
+  cached_network_image: ^3.3.1
   cupertino_icons: ^1.0.6
   google_fonts: ^6.1.0
-  intl: ^0.18.1
+  intl: ^0.20.2
   flutter_svg: ^2.0.9
 
   # Storage
   shared_preferences: ^2.2.2
   path_provider: ^2.1.1
+
+  # Local notifications (Rahu Kaal, Sandhya Kaal reminders)
+  flutter_local_notifications: ^17.2.3
+  timezone: ^0.9.4
 
   # Utils
   url_launcher: ^6.2.2
@@ -59,6 +67,7 @@ dev_dependencies:
   riverpod_lint: ^2.3.6
 
 flutter:
+  generate: true
   uses-material-design: true
 
   assets:

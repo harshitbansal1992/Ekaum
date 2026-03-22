@@ -6,8 +6,9 @@ import '../../../../core/services/api_service.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/services/payment_handler.dart';
 import '../../data/models/avdhan_audio.dart';
-import '../pages/avdhan_player_page.dart';
 import '../providers/subscription_provider.dart';
+import '../../../home/data/models/favourite_item.dart';
+import '../../../home/presentation/providers/favourites_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/components/glass_card.dart';
 
@@ -68,14 +69,14 @@ class _AvdhanListPageState extends ConsumerState<AvdhanListPage> {
                 ? const SizedBox.shrink()
                 : TextButton(
                     onPressed: () => _showSubscriptionDialog(context),
-                    child: const Text(
-                      'Subscribe',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
                     style: TextButton.styleFrom(
                       backgroundColor: AppTheme.primaryGold,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    ),
+                    child: const Text(
+                      'Subscribe',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                   ),
             loading: () => const SizedBox.shrink(),
@@ -126,13 +127,34 @@ class _AvdhanListPageState extends ConsumerState<AvdhanListPage> {
                                 audio.title,
                                 style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textDark),
                               ),
-                              subtitle: Text(
-                                audio.description,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: AppTheme.textDim),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Consumer(
+                                    builder: (_, ref, __) {
+                                      final isFav = ref.watch(favouritesProvider).any((f) => f.type == 'avdhan' && f.id == audio.id);
+                                      return IconButton(
+                                        icon: Icon(
+                                          isFav ? Icons.favorite : Icons.favorite_border,
+                                          color: isFav ? Colors.red : AppTheme.textDim,
+                                          size: 22,
+                                        ),
+                                        onPressed: () {
+                                          final item = FavouriteItem(
+                                            type: 'avdhan',
+                                            id: audio.id,
+                                            title: audio.title,
+                                            subtitle: audio.description,
+                                            extra: audio.toJson(),
+                                          );
+                                          ref.read(favouritesProvider.notifier).toggle(item);
+                                        },
+                                      );
+                                    },
+                                  ),
+                                  const Icon(Icons.play_circle_fill, color: AppTheme.primaryGold, size: 32),
+                                ],
                               ),
-                              trailing: const Icon(Icons.play_circle_fill, color: AppTheme.primaryGold, size: 32),
                               onTap: () {
                                 context.push(
                                   '/avdhan/${audio.id}',

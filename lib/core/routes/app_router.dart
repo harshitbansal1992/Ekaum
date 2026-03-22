@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
-import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/home/presentation/pages/main_shell_page.dart';
+import '../../features/home/presentation/pages/edit_profile_page.dart';
 import '../../features/nadi_dosh/presentation/pages/nadi_dosh_page.dart';
+import '../../features/kundli_lite/presentation/pages/kundli_lite_page.dart';
 import '../../features/rahu_kaal/presentation/pages/rahu_kaal_page.dart';
 import '../../features/avdhan/presentation/pages/avdhan_list_page.dart';
 import '../../features/avdhan/presentation/pages/avdhan_player_page.dart';
@@ -18,9 +20,21 @@ import '../../features/patrika/data/models/patrika_issue.dart';
 import '../../features/pooja_items/presentation/pages/pooja_items_page.dart';
 import '../../features/paath_services/presentation/pages/paath_services_page.dart';
 import '../../features/paath_services/presentation/pages/paath_form_page.dart';
+import '../../features/paath_services/presentation/pages/paath_details_page.dart';
+import '../../features/paath_services/presentation/pages/paath_form_detail_page.dart';
 import '../../features/paath_services/data/models/paath_service.dart';
 import '../../features/donation/presentation/pages/donation_page.dart';
+import '../../features/mantra_notes/presentation/pages/mantra_note_form_page.dart';
+import '../../features/mantra_notes/presentation/pages/mantra_notes_list_page.dart';
+import '../../features/mantra_notes/data/models/mantra_note.dart';
 import '../../features/payment/presentation/pages/payment_status_page.dart';
+import '../../features/search/presentation/pages/search_page.dart';
+import '../../features/video_satsang/presentation/pages/video_satsang_list_page.dart';
+import '../../features/video_satsang/presentation/pages/video_satsang_detail_page.dart';
+import '../../features/video_satsang/data/models/video_satsang_item.dart';
+import '../../features/social_activities/presentation/pages/social_activities_page.dart';
+import '../../features/blog/presentation/pages/blog_page.dart';
+import '../../features/bslnd_centers/presentation/pages/bslnd_centers_page.dart';
 
 class AppRouter {
   static GoRouter createRouter(WidgetRef ref) {
@@ -80,11 +94,19 @@ class AppRouter {
       ),
       GoRoute(
         path: '/home',
-        builder: (context, state) => const HomePage(),
+        builder: (context, state) => const MainShellPage(),
+      ),
+      GoRoute(
+        path: '/edit-profile',
+        builder: (context, state) => const EditProfilePage(),
       ),
       GoRoute(
         path: '/nadi-dosh',
         builder: (context, state) => const NadiDoshPage(),
+      ),
+      GoRoute(
+        path: '/kundli-lite',
+        builder: (context, state) => const KundliLitePage(),
       ),
       GoRoute(
         path: '/rahu-kaal',
@@ -132,8 +154,62 @@ class AppRouter {
         },
       ),
       GoRoute(
+        path: '/paath-details',
+        builder: (context, state) => const PaathDetailsPage(),
+      ),
+      GoRoute(
+        path: '/paath-details/:id',
+        builder: (context, state) {
+          final formId = state.pathParameters['id']!;
+          return PaathFormDetailPage(formId: formId);
+        },
+      ),
+      GoRoute(
         path: '/donation',
         builder: (context, state) => const DonationPage(),
+      ),
+      GoRoute(
+        path: '/search',
+        builder: (context, state) => const SearchPage(),
+      ),
+      GoRoute(
+        path: '/video-satsang',
+        builder: (context, state) => const VideoSatsangListPage(),
+      ),
+      GoRoute(
+        path: '/video-satsang/:id',
+        builder: (context, state) {
+          final video = state.extra as VideoSatsangItem;
+          return VideoSatsangDetailPage(video: video);
+        },
+      ),
+      GoRoute(
+        path: '/social-activities',
+        builder: (context, state) => const SocialActivitiesPage(),
+      ),
+      GoRoute(
+        path: '/blog',
+        builder: (context, state) => const BlogPage(),
+      ),
+      GoRoute(
+        path: '/bslnd-centers',
+        builder: (context, state) => const BslndCentersPage(),
+      ),
+      GoRoute(
+        path: '/mantra-notes',
+        builder: (context, state) => const MantraNotesListPage(),
+      ),
+      GoRoute(
+        path: '/mantra-notes/new',
+        builder: (context, state) => const MantraNoteFormPage(),
+      ),
+      GoRoute(
+        path: '/mantra-notes/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          final note = state.extra is MantraNote ? state.extra as MantraNote : null;
+          return MantraNoteFormPage(noteId: id == 'new' ? null : id, existingNote: note);
+        },
       ),
       GoRoute(
         path: '/payment/:type',

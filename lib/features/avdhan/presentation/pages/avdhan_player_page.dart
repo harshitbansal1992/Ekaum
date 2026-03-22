@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
@@ -38,6 +39,14 @@ class _AvdhanPlayerPageState extends ConsumerState<AvdhanPlayerPage>
   bool _listenersSetUp = false;
   bool _isDisposed = false;
 
+  // Playback options
+  double _playbackSpeed = 1.0;
+  static const List<double> _speedOptions = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+  LoopMode _loopMode = LoopMode.off;
+  bool _showDescription = false;
+  Timer? _sleepTimer;
+  int? _sleepSecondsRemaining; // null = sleep timer off
+
   // Animation Controller for rotating artwork
   late AnimationController _rotationController;
 
@@ -47,6 +56,7 @@ class _AvdhanPlayerPageState extends ConsumerState<AvdhanPlayerPage>
   StreamSubscription? _positionSubscription;
   StreamSubscription? _playerStateSubscription;
   StreamSubscription? _playbackEventSubscription;
+  StreamSubscription? _durationSubscription;
 
   @override
   void initState() {
@@ -118,6 +128,12 @@ class _AvdhanPlayerPageState extends ConsumerState<AvdhanPlayerPage>
       });
     });
 
+    // Listen to duration (for files without pre-set duration)
+    _durationSubscription = _audioPlayer.durationStream.listen((duration) {
+      if (_isDisposed || !mounted || duration == null) return;
+      setState(() => _duration = duration);
+    });
+
     // Listen to playback events for errors
     _playbackEventSubscription = _audioPlayer.playbackEventStream.listen(
       (event) {},
@@ -184,7 +200,8 @@ class _AvdhanPlayerPageState extends ConsumerState<AvdhanPlayerPage>
         );
         
         if (_isDisposed) return;
-        await _audioPlayer.setLoopMode(LoopMode.off);
+        await _audioPlayer.setLoopMode(_loopMode);
+        await _audioPlayer.setSpeed(_playbackSpeed);
 
         // Wait for ready (simplified from previous version for brevity)
         if (widget.audio.duration > 0) {
@@ -267,12 +284,94 @@ class _AvdhanPlayerPageState extends ConsumerState<AvdhanPlayerPage>
     _audioPlayer.seek(clampedPos);
   }
 
+  void _startSleepTimer(int minutes) {
+    _sleepTimer?.cancel();
+    setState(() => _sleepSecondsRemaining = minutes * 60);
+    _sleepTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_isDisposed || !mounted) return;
+      setState(() {
+        _sleepSecondsRemaining = _sleepSecondsRemaining! - 1;
+        if (_sleepSecondsRemaining! <= 0) {
+          _sleepSecondsRemaining = null;
+          _sleepTimer?.cancel();
+          _audioPlayer.pause();
+          _rotationController.stop();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Sleep timer ended')),
+            );
+          }
+        }
+      });
+    });
+  }
+
+  void _cancelSleepTimer() {
+    _sleepTimer?.cancel();
+    setState(() => _sleepSecondsRemaining = null);
+  }
+
+  String _formatSleepRemaining() {
+    if (_sleepSecondsRemaining == null) return '';
+    final m = _sleepSecondsRemaining! ~/ 60;
+    final s = _sleepSecondsRemaining! % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  void _showSleepTimerSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: AppTheme.bgLight,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Sleep timer', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [5, 10, 15, 30, 45, 60].map((m) {
+                return ActionChip(
+                  label: Text('$m min'),
+                  backgroundColor: AppTheme.primaryGold.withOpacity(0.1),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _startSleepTimer(m * 60); // Convert to seconds for countdown
+                  },
+                );
+              }).toList(),
+            ),
+            if (_sleepSecondsRemaining != null) ...[
+              const SizedBox(height: 16),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _cancelSleepTimer();
+                },
+                child: const Text('Cancel timer'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _isDisposed = true;
-    _rotationController.dispose(); // Dispose animation
+    _sleepTimer?.cancel();
+    _rotationController.dispose();
     _positionSubscription?.cancel();
     _playerStateSubscription?.cancel();
+    _durationSubscription?.cancel();
     _playbackEventSubscription?.cancel();
     _audioPlayer.dispose();
     super.dispose();
@@ -290,11 +389,6 @@ class _AvdhanPlayerPageState extends ConsumerState<AvdhanPlayerPage>
     final subscriptionAsync = ref.watch(subscriptionProvider);
     final isSubscribed = subscriptionAsync.value ?? false;
 
-    // Background Image Provider
-    final ImageProvider? bgImage = widget.audio.thumbnailUrl != null 
-        ? NetworkImage(widget.audio.thumbnailUrl!) 
-        : null;
-
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -309,9 +403,15 @@ class _AvdhanPlayerPageState extends ConsumerState<AvdhanPlayerPage>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. Immersive Background
-          if (bgImage != null)
-            Image(image: bgImage, fit: BoxFit.cover),
+          // 1. Immersive Background (cached for performance, fallback when no thumbnail)
+          widget.audio.thumbnailUrl != null
+              ? CachedNetworkImage(
+                  imageUrl: widget.audio.thumbnailUrl!,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => Container(color: AppTheme.bgCream),
+                  errorWidget: (_, __, ___) => Container(color: AppTheme.bgCream),
+                )
+              : Container(color: AppTheme.bgCream),
           
           // 2. Global Gradient (Fallback or Overlay)
           Container(
@@ -364,10 +464,15 @@ class _AvdhanPlayerPageState extends ConsumerState<AvdhanPlayerPage>
                             spreadRadius: 0,
                           ),
                         ],
-                        image: DecorationImage(
-                          image: bgImage ?? const AssetImage('assets/images/logo.png'), // Fallback
-                          fit: BoxFit.cover,
-                        ),
+                        image: widget.audio.thumbnailUrl != null
+                            ? DecorationImage(
+                                image: CachedNetworkImageProvider(widget.audio.thumbnailUrl!),
+                                fit: BoxFit.cover,
+                              )
+                            : const DecorationImage(
+                                image: AssetImage('assets/images/logo.png'),
+                                fit: BoxFit.cover,
+                              ),
                         border: Border.all(
                           color: Colors.white.withOpacity(0.1),
                           width: 2,
@@ -378,7 +483,7 @@ class _AvdhanPlayerPageState extends ConsumerState<AvdhanPlayerPage>
                   
                   const Spacer(flex: 2),
 
-                  // Title & Meta
+                  // Title
                   Text(
                     widget.audio.title,
                     style: theme.textTheme.headlineMedium?.copyWith(
@@ -388,22 +493,52 @@ class _AvdhanPlayerPageState extends ConsumerState<AvdhanPlayerPage>
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.audio.description,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: AppTheme.textDim,
+                  // Description (expandable)
+                  if (widget.audio.description.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: () => setState(() => _showDescription = !_showDescription),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            _showDescription ? Icons.expand_less : Icons.expand_more,
+                            color: AppTheme.primaryGold,
+                            size: 24,
+                          ),
+                          Text(
+                            _showDescription ? 'Hide' : 'Show description',
+                            style: const TextStyle(color: AppTheme.primaryGold, fontSize: 13),
+                          ),
+                        ],
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  
-                  const SizedBox(height: 48),
+                    AnimatedCrossFade(
+                      firstChild: const SizedBox.shrink(),
+                      secondChild: Padding(
+                        padding: const EdgeInsets.only(top: 8, left: 16, right: 16),
+                        child: Text(
+                          widget.audio.description,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.textDim,
+                            height: 1.5,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 10,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      crossFadeState: _showDescription
+                          ? CrossFadeState.showSecond
+                          : CrossFadeState.showFirst,
+                      duration: const Duration(milliseconds: 200),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
 
                   // Slider Section
                   if (_errorMessage == null) ...[
-                    // Preview Badge
+                    // Preview Badge - dynamic from AppConstants
                     if (!isSubscribed)
                       Container(
                         margin: const EdgeInsets.only(bottom: 16),
@@ -414,7 +549,7 @@ class _AvdhanPlayerPageState extends ConsumerState<AvdhanPlayerPage>
                           border: Border.all(color: AppTheme.primaryGold.withOpacity(0.2)),
                         ),
                         child: const Text(
-                          'Free Preview: 5m',
+                          'Free Preview: ${AppConstants.audioPreviewSeconds ~/ 60}m',
                           style: TextStyle(color: AppTheme.primaryGoldDark, fontSize: 12),
                         ),
                       ),
@@ -443,10 +578,16 @@ class _AvdhanPlayerPageState extends ConsumerState<AvdhanPlayerPage>
                         value: _duration.inSeconds > 0 
                             ? _position.inSeconds.toDouble().clamp(0, _duration.inSeconds.toDouble()) 
                             : 0.0,
-                        max: _duration.inSeconds > 0 ? _duration.inSeconds.toDouble() : 1.0,
+                        max: _duration.inSeconds > 0 
+                            ? (!isSubscribed ? AppConstants.audioPreviewSeconds.toDouble().clamp(0, _duration.inSeconds.toDouble()) : _duration.inSeconds.toDouble())
+                            : 1.0,
                         onChanged: (value) {
                            if (!_isInitialized) return;
-                           _audioPlayer.seek(Duration(seconds: value.toInt()));
+                           // Clamp free users to preview limit
+                           final maxSec = !isSubscribed 
+                               ? AppConstants.audioPreviewSeconds.clamp(0, _duration.inSeconds)
+                               : _duration.inSeconds;
+                           _audioPlayer.seek(Duration(seconds: (value.toInt().clamp(0, maxSec))));
                         },
                       ),
                     ),
@@ -457,48 +598,200 @@ class _AvdhanPlayerPageState extends ConsumerState<AvdhanPlayerPage>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        // Replay 10s
+                        // Replay 15s
                         IconButton(
                           icon: const Icon(Icons.replay_10_rounded, color: AppTheme.primaryGold),
-                          iconSize: 32,
-                          onPressed: () => _seekRelative(-10),
+                          iconSize: 36,
+                          tooltip: 'Replay 15s',
+                          onPressed: () => _seekRelative(-15),
                         ),
                         
                         // Play/Pause Main Button
                         GestureDetector(
                           onTap: _togglePlayPause,
                           child: Container(
-                            width: 72,
-                            height: 72,
+                            width: 80,
+                            height: 80,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: AppTheme.primaryGold,
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  AppTheme.primaryGoldLight,
+                                  AppTheme.primaryGold,
+                                  AppTheme.primaryGoldDark,
+                                ],
+                              ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: AppTheme.primaryGold.withOpacity(0.3),
-                                  blurRadius: 15,
+                                  color: AppTheme.primaryGold.withOpacity(0.4),
+                                  blurRadius: 20,
                                   spreadRadius: 2,
                                 ),
                               ],
                             ),
                             child: _isLoading
                                 ? const Padding(
-                                    padding: EdgeInsets.all(20.0),
+                                    padding: EdgeInsets.all(22.0),
                                     child: CircularProgressIndicator(color: Colors.black),
                                   )
                                 : Icon(
                                     _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                    size: 40,
-                                    color: Colors.white, // High contrast on Gold
+                                    size: 44,
+                                    color: Colors.white,
                                   ),
                           ),
                         ),
                         
-                        // Forward 10s
+                        // Forward 15s
                         IconButton(
                           icon: const Icon(Icons.forward_10_rounded, color: AppTheme.primaryGold),
-                          iconSize: 32,
-                          onPressed: () => _seekRelative(10),
+                          iconSize: 36,
+                          tooltip: 'Forward 15s',
+                          onPressed: () => _seekRelative(15),
+                        ),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 20),
+                    
+                    // Secondary controls: Speed + Loop + Sleep
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        // Playback speed
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryGold.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: AppTheme.primaryGold.withOpacity(0.2)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.speed_rounded, color: AppTheme.primaryGold, size: 20),
+                              const SizedBox(width: 8),
+                              DropdownButtonHideUnderline(
+                                child: DropdownButton<double>(
+                                  value: _playbackSpeed,
+                                  isDense: true,
+                                  dropdownColor: AppTheme.bgLight,
+                                  icon: const Icon(Icons.arrow_drop_down, color: AppTheme.primaryGold),
+                                  items: _speedOptions.map((s) {
+                                    return DropdownMenuItem(
+                                      value: s,
+                                      child: Text(
+                                        s == 1.0 ? '1x' : '${s}x',
+                                        style: const TextStyle(
+                                          color: AppTheme.textDark,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (value) async {
+                                    if (value == null || !_isInitialized) return;
+                                    setState(() => _playbackSpeed = value);
+                                    await _audioPlayer.setSpeed(value);
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Loop mode
+                        InkWell(
+                          onTap: () async {
+                            final next = _loopMode == LoopMode.one ? LoopMode.off : LoopMode.one;
+                            setState(() => _loopMode = next);
+                            await _audioPlayer.setLoopMode(next);
+                          },
+                          borderRadius: BorderRadius.circular(24),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: _loopMode == LoopMode.one
+                                  ? AppTheme.primaryGold.withOpacity(0.2)
+                                  : AppTheme.primaryGold.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: _loopMode == LoopMode.one
+                                    ? AppTheme.primaryGold
+                                    : AppTheme.primaryGold.withOpacity(0.2),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.repeat_rounded,
+                                  color: _loopMode == LoopMode.one
+                                      ? AppTheme.primaryGold
+                                      : AppTheme.textDim,
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _loopMode == LoopMode.one ? 'Repeat On' : 'Repeat Off',
+                                  style: TextStyle(
+                                    color: _loopMode == LoopMode.one
+                                        ? AppTheme.primaryGold
+                                        : AppTheme.textDim,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        // Sleep timer
+                        InkWell(
+                          onTap: _showSleepTimerSheet,
+                          borderRadius: BorderRadius.circular(24),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: _sleepSecondsRemaining != null
+                                  ? AppTheme.primaryGold.withOpacity(0.2)
+                                  : AppTheme.primaryGold.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: _sleepSecondsRemaining != null
+                                    ? AppTheme.primaryGold
+                                    : AppTheme.primaryGold.withOpacity(0.2),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.bedtime_rounded,
+                                  color: _sleepSecondsRemaining != null
+                                      ? AppTheme.primaryGold
+                                      : AppTheme.textDim,
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _sleepSecondsRemaining != null
+                                      ? _formatSleepRemaining()
+                                      : 'Sleep',
+                                  style: TextStyle(
+                                    color: _sleepSecondsRemaining != null
+                                        ? AppTheme.primaryGold
+                                        : AppTheme.textDim,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),

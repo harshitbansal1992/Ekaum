@@ -21,6 +21,8 @@ class _DonationPageState extends ConsumerState<DonationPage> {
   final _phoneController = TextEditingController();
   final _messageController = TextEditingController();
   bool _isSubmitting = false;
+  bool _isRecurring = false;
+  String _frequency = 'monthly'; // monthly | yearly
 
   @override
   void dispose() {
@@ -46,17 +48,24 @@ class _DonationPageState extends ConsumerState<DonationPage> {
         throw Exception('User not logged in');
       }
 
-      // Save donation record
-      await ApiService.createDonation(amount);
+      // Save donation record (creates pending, returns donationId)
+      final data = await ApiService.createDonation(
+        amount,
+        isRecurring: _isRecurring,
+        frequency: _frequency,
+      );
+      final donationId = data['donationId'] as String;
 
       if (mounted) {
-        // Proceed to payment
         PaymentHandler.handleDonationPayment(
           context,
           amount,
+          donationId,
           _nameController.text.trim(),
           _emailController.text.trim(),
           _phoneController.text.trim(),
+          isRecurring: _isRecurring,
+          frequency: _frequency,
         );
       }
     } catch (e) {
@@ -116,6 +125,28 @@ class _DonationPageState extends ConsumerState<DonationPage> {
                 ),
                 validator: Validators.validateAmount,
               ),
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('Make it recurring'),
+                subtitle: const Text('Donate every month or year automatically'),
+                value: _isRecurring,
+                onChanged: (v) => setState(() => _isRecurring = v),
+                activeThumbColor: Theme.of(context).colorScheme.primary,
+              ),
+              if (_isRecurring) ...[
+                RadioListTile<String>(
+                  title: const Text('Monthly'),
+                  value: 'monthly',
+                  groupValue: _frequency,
+                  onChanged: (v) => setState(() => _frequency = v ?? 'monthly'),
+                ),
+                RadioListTile<String>(
+                  title: const Text('Yearly'),
+                  value: 'yearly',
+                  groupValue: _frequency,
+                  onChanged: (v) => setState(() => _frequency = v ?? 'yearly'),
+                ),
+              ],
               const SizedBox(height: 16),
               TextFormField(
                 controller: _nameController,

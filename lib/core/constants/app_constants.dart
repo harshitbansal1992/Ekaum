@@ -22,5 +22,11 @@ class AppConstants {
   static const String poojaItemsUrl = 'https://mndivine.com/product-category/pooja-samagari/';
   static const String bslndWebsite = 'https://bslnd.in/';
   static const String mahabrahmrishiWebsite = 'https://mahabrahmrishi.com/';
+
+  // Social media (update Facebook/X URLs when available)
+  static const String instagramUrl = 'https://www.instagram.com/bslnd.in/';
+  static const String facebookUrl = 'https://www.facebook.com/bslnd.in';
+  static const String xUrl = 'https://x.com/bslnd_in';
+  static const String youtubeUrl = 'https://www.youtube.com/@Mahabrahmrishi';
 }
 
