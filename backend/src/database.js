@@ -10,6 +10,10 @@ const logger = require('./logger');
 const pool = new Pool({
   connectionString: config.database.url,
   ssl: config.database.ssl,
+  min: config.database.poolMin,
+  max: config.database.poolMax,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
 });
 
 /**

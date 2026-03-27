@@ -7,6 +7,7 @@ class SamagamEvent {
   final String location;
   final String? address;
   final String? imageUrl;
+  final String? googleMapsUrl;
 
   SamagamEvent({
     required this.id,
@@ -17,6 +18,7 @@ class SamagamEvent {
     required this.location,
     this.address,
     this.imageUrl,
+    this.googleMapsUrl,
   });
 
   factory SamagamEvent.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class SamagamEvent {
       location: json['location'] ?? '',
       address: json['address'],
       imageUrl: json['imageUrl'],
+      googleMapsUrl: json['googleMapsUrl'],
     );
   }
 
@@ -42,6 +45,7 @@ class SamagamEvent {
       'location': location,
       'address': address,
       'imageUrl': imageUrl,
+      'googleMapsUrl': googleMapsUrl,
     };
   }
 }

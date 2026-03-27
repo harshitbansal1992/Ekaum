@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/services/api_service.dart';
-import '../../../../features/auth/presentation/providers/auth_provider.dart';
-import '../../../../core/services/payment_service.dart';
-import '../../../avdhan/presentation/providers/subscription_provider.dart';
+import '../../../../features/avdhan/presentation/providers/subscription_provider.dart';
 
 class PaymentStatusPage extends ConsumerStatefulWidget {
   final String paymentType;
@@ -24,85 +21,31 @@ class PaymentStatusPage extends ConsumerStatefulWidget {
 }
 
 class _PaymentStatusPageState extends ConsumerState<PaymentStatusPage> {
-  bool _isVerifying = true;
+  bool _isVerifying = false;
   bool _isSuccess = false;
   String? _message;
 
   @override
   void initState() {
     super.initState();
-    _verifyPayment();
+    _evaluateStatus();
   }
 
-  Future<void> _verifyPayment() async {
-    if (widget.paymentId == null) {
-      setState(() {
-        _isVerifying = false;
-        _isSuccess = false;
-        _message = 'Payment ID not found';
-      });
-      return;
-    }
+  void _evaluateStatus() {
+    // With Razorpay in-app checkout, we navigate here after verification
+    // status=Credit or status=Credit means success (Razorpay uses 'captured')
+    final status = widget.status?.toLowerCase();
+    final isSuccess =
+        status == 'credit' || status == 'completed' || status == 'captured';
 
-    try {
-      // Verify payment with Instamojo
-      final result = await PaymentService.verifyPayment(widget.paymentId!);
-      
-      final paymentRequest = result['payment_request'];
-      final payments = paymentRequest['payments'] as List?;
-      
-      if (payments != null && payments.isNotEmpty) {
-        final payment = payments.first;
-        final status = payment['status'] as String?;
-        
-        if (status == 'Credit' || status == 'Completed') {
-          // Update database based on payment type
-          await _updatePaymentStatus(true);
-          
-          setState(() {
-            _isVerifying = false;
-            _isSuccess = true;
-            _message = 'Payment successful!';
-          });
+    setState(() {
+      _isVerifying = false;
+      _isSuccess = isSuccess && widget.paymentId != null;
+      _message = _isSuccess ? 'Payment successful!' : 'Payment failed or cancelled';
+    });
 
-          // Refresh subscription status if it was a subscription payment
-          if (widget.paymentType == 'subscription') {
-            ref.invalidate(subscriptionProvider);
-          }
-        } else {
-          setState(() {
-            _isVerifying = false;
-            _isSuccess = false;
-            _message = 'Payment failed or pending';
-          });
-        }
-      } else {
-        setState(() {
-          _isVerifying = false;
-          _isSuccess = false;
-          _message = 'Payment not found';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _isVerifying = false;
-        _isSuccess = false;
-        _message = 'Error verifying payment: ${e.toString()}';
-      });
-    }
-  }
-
-  Future<void> _updatePaymentStatus(bool success) async {
-    final authState = ref.read(authProvider);
-    final userId = authState.user?.id;
-    if (userId == null) return;
-
-    try {
-      // Payment status is now handled by the backend webhook
-      // This method is kept for compatibility but the backend handles updates
-      // The webhook will update subscriptions, purchases, etc. automatically
-    } catch (e) {
-      // Handle error
+    if (_isSuccess && widget.paymentType == 'subscription') {
+      ref.invalidate(subscriptionProvider);
     }
   }
 
@@ -147,7 +90,6 @@ class _PaymentStatusPageState extends ConsumerState<PaymentStatusPage> {
               ElevatedButton(
                 onPressed: () {
                   if (_isSuccess) {
-                    // Navigate based on payment type
                     switch (widget.paymentType) {
                       case 'subscription':
                         context.go('/avdhan');
@@ -156,7 +98,7 @@ class _PaymentStatusPageState extends ConsumerState<PaymentStatusPage> {
                         context.go('/patrika');
                         break;
                       case 'paath':
-                        context.go('/paath-services');
+                        context.go('/paath-details');
                         break;
                       case 'donation':
                         context.go('/home');
@@ -177,4 +119,3 @@ class _PaymentStatusPageState extends ConsumerState<PaymentStatusPage> {
     );
   }
 }
-

@@ -13,15 +13,30 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const compression = require('compression');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 const { config, validateConfig, getModeConfig } = require('./src/config');
-const { pool } = require('./src/database');
+const { closePool } = require('./src/database');
 const logger = require('./src/logger');
 const { errorHandler, notFoundHandler } = require('./src/middleware/errorHandler');
 
 // Routes
 const healthRoutes = require('./src/routes/health');
 const authRoutes = require('./src/routes/auth');
+const settingsRoutes = require('./src/routes/settings');
+const avdhanRoutes = require('./src/routes/avdhan');
+const paathServicesRoutes = require('./src/routes/paathServices');
+const paathFormsRoutes = require('./src/routes/paathForms');
+const mantraNotesRoutes = require('./src/routes/mantraNotes');
+const donationsRoutes = require('./src/routes/donations');
+const adminRoutes = require('./src/routes/admin');
+const paymentRoutes = require('./src/routes/payments');
+const panchangRoutes = require('./src/routes/panchang');
+const searchRoutes = require('./src/routes/search');
+const patrikaRoutes = require('./src/routes/patrika');
+const videoSatsangRoutes = require('./src/routes/videoSatsang');
 
 // Initialize Express app
 const app = express();
@@ -43,8 +58,38 @@ try {
 
 // ============ MIDDLEWARE ============
 
+// Security headers (production-ready)
+app.use(helmet({ contentSecurityPolicy: false })); // CSP disabled - adjust if needed for your app
+
+// Response compression (reduces bandwidth for lakh users)
+app.use(compression());
+
 // CORS
 app.use(cors(config.cors));
+
+// Rate limiting (protects against abuse at scale)
+if (config.features.rateLimit) {
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // 100 requests per window per IP
+    message: { error: 'Too many requests. Please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  app.use('/api/', limiter);
+  // Stricter limit for auth endpoints
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10, // 10 login/register attempts per 15 min
+    message: { error: 'Too many auth attempts. Try again later.' },
+  });
+  app.use('/api/auth/login', authLimiter);
+  app.use('/api/auth/register', authLimiter);
+}
+
+// Razorpay webhook needs raw body for signature verification (must be before json parser)
+const { webhookHandler } = require('./src/routes/payments');
+app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), webhookHandler);
 
 // Body parsing
 app.use(bodyParser.json());
@@ -65,6 +110,48 @@ app.use('/health', healthRoutes);
 
 // Authentication routes
 app.use('/api/auth', authRoutes);
+
+// Settings (key-value store for dynamic content)
+app.use('/api/settings', settingsRoutes);
+
+// Avdhan (audio files from avdhan_audio/ folder)
+app.use('/api/avdhan', avdhanRoutes);
+
+// Paath services (public catalog for mobile app)
+app.use('/api/paath-services', paathServicesRoutes);
+
+// Paath forms (create & list for mobile app)
+app.use('/api/paath-forms', paathFormsRoutes);
+
+// Mantra notes (user-stored mantras, note-taker style)
+app.use('/api/mantra-notes', mantraNotesRoutes);
+
+// Donations (create before payment for mobile app)
+app.use('/api/donations', donationsRoutes);
+
+// Samagam (public list + upcoming for mobile app home)
+const samagamRoutes = require('./src/routes/samagam');
+app.use('/api/samagam', samagamRoutes);
+
+// Announcements (Vishesh Sandesh - public for mobile app home)
+const announcementsRoutes = require('./src/routes/announcements');
+app.use('/api/announcements', announcementsRoutes);
+
+// Panchang (Hindu calendar - proxies Kaalchakra free API)
+app.use('/api/panchang', panchangRoutes);
+
+// Search (unified search across content)
+app.use('/api/search', searchRoutes);
+
+// Patrika (public list + purchases for mobile app)
+app.use('/api/patrika', patrikaRoutes);
+
+// Video Satsang (free YouTube video content)
+app.use('/api/video-satsang', videoSatsangRoutes);
+
+// Admin / Back office routes (same DB as Ekaum)
+app.use('/api/admin', adminRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Mode-specific endpoint for configuration info (development/test only)
 if (config.isDevelopment || config.isTest) {
@@ -91,21 +178,21 @@ app.use(errorHandler);
 
 const PORT = config.port;
 
-// Handle graceful shutdown
-process.on('SIGTERM', async () => {
-  logger.warn('SIGTERM signal received: closing HTTP server');
-  await pool.end();
+// Handle graceful shutdown (production-ready for load balancers)
+const gracefulShutdown = async (signal) => {
+  logger.warn(`${signal} received: shutting down gracefully`);
+  server.close(() => {
+    logger.info('HTTP server closed');
+  });
+  await closePool();
   process.exit(0);
-});
+};
 
-process.on('SIGINT', async () => {
-  logger.warn('SIGINT signal received: closing HTTP server');
-  await pool.end();
-  process.exit(0);
-});
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// Start server
-app.listen(PORT, () => {
+// Start server (save reference for graceful shutdown)
+const server = app.listen(PORT, () => {
   const mode = config.mode.toUpperCase();
   const modeEmoji = {
     DEVELOPMENT: '🚀',

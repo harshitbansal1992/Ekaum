@@ -89,7 +89,14 @@ const config = {
     expiresIn: process.env.JWT_EXPIRES_IN || currentProfile.jwtExpiresIn,
   },
 
-  // Instamojo
+  // Razorpay Payment Gateway
+  razorpay: {
+    keyId: process.env.RAZORPAY_KEY_ID,
+    keySecret: process.env.RAZORPAY_KEY_SECRET,
+    webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,
+  },
+
+  // Instamojo (legacy, deprecated in favor of Razorpay)
   instamojo: {
     apiKey: process.env.INSTAMOJO_API_KEY,
     authToken: process.env.INSTAMOJO_AUTH_TOKEN,

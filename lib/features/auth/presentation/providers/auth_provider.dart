@@ -113,6 +113,33 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await ApiService.logout();
     state = AuthState();
   }
+
+  Future<void> updateProfile({
+    String? name,
+    String? phone,
+    DateTime? dateOfBirth,
+    String? timeOfBirth,
+    String? placeOfBirth,
+    String? fathersOrHusbandsName,
+    String? gotra,
+    String? caste,
+  }) async {
+    try {
+      final userData = await ApiService.updateProfile(
+        name: name,
+        phone: phone,
+        dateOfBirth: dateOfBirth,
+        timeOfBirth: timeOfBirth,
+        placeOfBirth: placeOfBirth,
+        fathersOrHusbandsName: fathersOrHusbandsName,
+        gotra: gotra,
+        caste: caste,
+      );
+      state = state.copyWith(user: AppUser.fromJson(userData));
+    } catch (e) {
+      rethrow;
+    }
+  }
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {

@@ -1,42 +1,41 @@
-import 'package:dio/dio.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'dart:async';
+
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 import '../constants/app_constants.dart';
-import '../config/app_config.dart';
+import '../utils/platform_utils.dart';
+import 'api_service.dart';
 
+/// Razorpay payment service - in-app checkout for all payment types
 class PaymentService {
-  static const String instamojoApiUrl = 'https://www.instamojo.com/api/1.1/';
-  static String? apiKey;
-  static String? authToken;
+  static String? _keyId;
 
-  static void initialize(String key, String token) {
-    apiKey = key;
-    authToken = token;
+  static void initialize(String keyId) {
+    _keyId = keyId;
   }
 
-  // Create payment request for subscription
+  static String get keyId => _keyId ?? '';
+
+  static bool get isInitialized => _keyId != null && _keyId!.isNotEmpty;
+
+  /// Create and complete subscription payment - opens Razorpay checkout
   static Future<Map<String, dynamic>> createSubscriptionPayment({
     required String userId,
     required String email,
     required String phone,
     required String name,
   }) async {
-    return _createPayment(
+    return _createAndCompletePayment(
       amount: AppConstants.subscriptionPrice,
-      purpose: 'Avdhan Monthly Subscription',
-      buyerName: name,
+      type: 'subscription',
+      metadata: {'userId': userId},
+      name: name,
       email: email,
       phone: phone,
-      redirectUrl: 'bslndapp://payment/subscription?payment_id={payment_id}&payment_status={payment_status}',
-      webhook: AppConfig.backendUrl + '/api/payments/webhook',
-      metadata: {
-        'userId': userId,
-        'type': 'subscription',
-      },
     );
   }
 
-  // Create payment request for patrika
+  /// Create and complete patrika payment
   static Future<Map<String, dynamic>> createPatrikaPayment({
     required String userId,
     required String issueId,
@@ -45,157 +44,214 @@ class PaymentService {
     required String phone,
     required String name,
   }) async {
-    return _createPayment(
+    return _createAndCompletePayment(
       amount: amount,
-      purpose: 'Prabhu Kripa Patrika',
-      buyerName: name,
-      email: email,
-      phone: phone,
-      redirectUrl: 'bslndapp://payment/patrika?payment_id={payment_id}&payment_status={payment_status}',
-      webhook: AppConfig.backendUrl + '/api/payments/webhook',
+      type: 'patrika',
       metadata: {
         'userId': userId,
-        'type': 'patrika',
         'issueId': issueId,
       },
+      name: name,
+      email: email,
+      phone: phone,
     );
   }
 
-  // Create payment request for paath service
+  /// Create and complete paath service payment
   static Future<Map<String, dynamic>> createPaathPayment({
     required String userId,
     required String formId,
     required double amount,
     required int installmentNumber,
+    bool payRemainingInFull = false,
     required String email,
     required String phone,
     required String name,
   }) async {
-    return _createPayment(
+    return _createAndCompletePayment(
       amount: amount,
-      purpose: 'Paath Service - Installment $installmentNumber',
-      buyerName: name,
-      email: email,
-      phone: phone,
-      redirectUrl: 'bslndapp://payment/paath?payment_id={payment_id}&payment_status={payment_status}',
-      webhook: AppConfig.backendUrl + '/api/payments/webhook',
+      type: 'paath',
       metadata: {
         'userId': userId,
-        'type': 'paath',
         'formId': formId,
         'installmentNumber': installmentNumber.toString(),
+        if (payRemainingInFull) 'payRemainingInFull': 'true',
       },
+      name: name,
+      email: email,
+      phone: phone,
     );
   }
 
-  // Create payment request for donation
+  /// Create and complete donation payment
   static Future<Map<String, dynamic>> createDonationPayment({
     required String userId,
+    required String donationId,
     required double amount,
     required String email,
     required String phone,
     required String name,
+    bool isRecurring = false,
+    String frequency = 'monthly',
   }) async {
-    return _createPayment(
+    final metadata = {
+      'userId': userId,
+      'donationId': donationId,
+      if (isRecurring) 'isRecurring': 'true',
+      if (isRecurring) 'frequency': frequency,
+    };
+    return _createAndCompletePayment(
       amount: amount,
-      purpose: 'Donation to BSLND',
-      buyerName: name,
+      type: 'donation',
+      metadata: metadata,
+      name: name,
       email: email,
       phone: phone,
-      redirectUrl: 'bslndapp://payment/donation?payment_id={payment_id}&payment_status={payment_status}',
-      webhook: AppConfig.backendUrl + '/api/payments/webhook',
-      metadata: {
-        'userId': userId,
-        'type': 'donation',
-      },
     );
   }
 
-  static Future<Map<String, dynamic>> _createPayment({
+  static Future<Map<String, dynamic>> _createAndCompletePayment({
     required double amount,
-    required String purpose,
-    required String buyerName,
+    required String type,
+    required Map<String, String> metadata,
+    required String name,
     required String email,
     required String phone,
-    required String redirectUrl,
-    required String webhook,
-    required Map<String, String> metadata,
   }) async {
-    if (apiKey == null || authToken == null) {
-      throw Exception('Payment service not initialized');
+    if (!isInitialized) {
+      throw Exception('Payment service not initialized. Add Razorpay key.');
     }
 
-    try {
-      final dio = Dio();
-      dio.options.headers = {
-        'X-Api-Key': apiKey!,
-        'X-Auth-Token': authToken!,
-      };
+    // Create order via backend (include buyer info in metadata for records)
+    final orderResponse = await ApiService.createPaymentOrder(
+      amount: amount,
+      type: type,
+      metadata: {...metadata, 'name': name, 'email': email, 'phone': phone},
+    );
 
-      final response = await dio.post(
-        '${instamojoApiUrl}payment-requests/',
-        data: {
-          'amount': amount.toStringAsFixed(2),
-          'purpose': purpose,
-          'buyer_name': buyerName,
-          'email': email,
-          'phone': phone,
-          'redirect_url': redirectUrl,
-          'webhook': webhook,
-          'allow_repeated_payments': false,
-          ...metadata.map((key, value) => MapEntry('metadata_$key', value)),
-        },
+    final orderId = orderResponse['orderId'] as String?;
+    final checkoutKey = orderResponse['keyId'] as String? ?? _keyId;
+
+    if (orderId == null || orderId.isEmpty || checkoutKey == null) {
+      throw Exception('Failed to create payment order');
+    }
+
+    // Open Razorpay checkout
+    final result = await _openRazorpayCheckout(
+      keyId: checkoutKey,
+      orderId: orderId,
+      amount: amount,
+      name: name,
+      email: email,
+      phone: phone,
+    );
+
+    if (result['success'] != true) {
+      throw Exception(result['error'] ?? 'Payment failed');
+    }
+
+    final paymentId = result['paymentId'] as String?;
+    if (paymentId == null || paymentId.isEmpty) {
+      throw Exception('Payment ID not received');
+    }
+
+    // Verify with backend
+    final verifyResponse = await ApiService.verifyPayment(
+      orderId: orderId,
+      paymentId: paymentId,
+    );
+
+    if (verifyResponse['success'] != true) {
+      throw Exception(verifyResponse['error'] ?? 'Payment verification failed');
+    }
+
+    return {
+      'success': true,
+      'paymentId': paymentId,
+      'orderId': orderId,
+      'type': type,
+    };
+  }
+
+  static Future<Map<String, dynamic>> _openRazorpayCheckout({
+    required String keyId,
+    required String orderId,
+    required double amount,
+    required String name,
+    required String email,
+    required String phone,
+  }) async {
+    if (!isRazorpaySupported) {
+      throw Exception(
+        'In-app payment is not available on this platform. '
+        'Please use the Android or iOS app for payments.',
       );
+    }
+    final completer = Completer<Map<String, dynamic>>();
+    Razorpay razorpay;
+    try {
+      razorpay = Razorpay();
+    } catch (e) {
+      throw Exception(
+        'In-app payment is not available on this platform. '
+        'Please use the Android or iOS app for payments.',
+      );
+    }
 
-      if (response.statusCode == 201) {
-        final paymentData = response.data['payment_request'];
-        return {
+    razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, (PaymentSuccessResponse response) {
+      razorpay.clear();
+      if (!completer.isCompleted) {
+        completer.complete({
           'success': true,
-          'paymentId': paymentData['id'],
-          'paymentUrl': paymentData['longurl'],
-        };
-      } else {
-        throw Exception('Failed to create payment request');
+          'paymentId': response.paymentId,
+          'orderId': response.orderId,
+        });
       }
-    } catch (e) {
-      throw Exception('Payment error: ${e.toString()}');
-    }
+    });
+
+    razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, (PaymentFailureResponse response) {
+      razorpay.clear();
+      if (!completer.isCompleted) {
+        completer.complete({
+          'success': false,
+          'error': response.message ?? 'Payment failed',
+        });
+      }
+    });
+
+    razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, (ExternalWalletResponse response) {
+      razorpay.clear();
+      if (!completer.isCompleted) {
+        completer.complete({
+          'success': false,
+          'error': 'External wallet selected - complete payment in browser',
+        });
+      }
+    });
+
+    final options = {
+      'key': keyId,
+      'amount': (amount * 100).round(), // paise
+      'name': 'Ekaum / BSLND',
+      'description': 'Payment',
+      'order_id': orderId,
+      'prefill': {
+        'contact': phone,
+        'email': email,
+        'name': name,
+      },
+      'theme': {'color': '#0D47A1'},
+    };
+
+    razorpay.open(options);
+
+    return completer.future;
   }
 
-  // Launch payment URL
-  static Future<void> launchPayment(String paymentUrl) async {
-    final uri = Uri.parse(paymentUrl);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      throw Exception('Could not launch payment URL');
-    }
-  }
-
-  // Verify payment status
+  /// Verify payment status (for deep link / status page)
   static Future<Map<String, dynamic>> verifyPayment(String paymentId) async {
-    if (apiKey == null || authToken == null) {
-      throw Exception('Payment service not initialized');
-    }
-
-    try {
-      final dio = Dio();
-      dio.options.headers = {
-        'X-Api-Key': apiKey!,
-        'X-Auth-Token': authToken!,
-      };
-
-      final response = await dio.get(
-        '${instamojoApiUrl}payment-requests/$paymentId/',
-      );
-
-      if (response.statusCode == 200) {
-        return response.data;
-      } else {
-        throw Exception('Failed to verify payment');
-      }
-    } catch (e) {
-      throw Exception('Payment verification error: ${e.toString()}');
-    }
+    // With Razorpay in-app checkout, verification is done in _createAndCompletePayment
+    // This is kept for PaymentStatusPage when navigated with pre-verified result
+    return {'success': true, 'paymentId': paymentId};
   }
 }

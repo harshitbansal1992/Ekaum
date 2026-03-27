@@ -40,5 +40,22 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
-module.exports = { authenticateToken };
+/**
+ * Optional auth - attaches req.user if valid token, but does not reject if missing
+ */
+const optionalAuthenticateToken = (req, res, next) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return next();
+    jwt.verify(token, config.jwt.secret, (err, user) => {
+      if (!err && user) req.user = user;
+      next();
+    });
+  } catch (e) {
+    next();
+  }
+};
+
+module.exports = { authenticateToken, optionalAuthenticateToken };
 

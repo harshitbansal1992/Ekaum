@@ -32,8 +32,6 @@ class AppTheme {
         onSecondary: Colors.white,
         surface: bgWhite,
         onSurface: textDark,
-        background: bgLight,
-        onBackground: textDark,
         error: errorColor,
       ),
 
@@ -152,6 +150,136 @@ class AppTheme {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+
+  // Dark theme palette (dark blue instead of black)
+  static const Color darkBg = Color(0xFF0D1B2A);       // Deep navy
+  static const Color darkSurface = Color(0xFF1B263B); // Dark blue
+  static const Color darkTextPrimary = Color(0xFFE2E8F0); // Light blue-white
+  static const Color darkTextSecondary = Color(0xFFC8D4E6); // Higher-contrast blue-gray
+
+  static ThemeData get darkTheme {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      primaryColor: primaryGold,
+      scaffoldBackgroundColor: Colors.transparent,
+      colorScheme: const ColorScheme.dark(
+        primary: primaryGold,
+        onPrimary: Colors.black87,
+        secondary: primaryGoldLight,
+        onSecondary: Colors.black87,
+        surface: darkSurface,
+        onSurface: darkTextPrimary,
+        error: errorColor,
+      ),
+      textTheme: TextTheme(
+        displayLarge: GoogleFonts.tenorSans(
+          fontSize: 32,
+          fontWeight: FontWeight.bold,
+          color: primaryGold,
+          letterSpacing: 1.2,
+        ),
+        displayMedium: GoogleFonts.tenorSans(
+          fontSize: 28,
+          fontWeight: FontWeight.w600,
+          color: primaryGold,
+        ),
+        displaySmall: GoogleFonts.outfit(
+          fontSize: 24,
+          fontWeight: FontWeight.w600,
+          color: darkTextPrimary,
+        ),
+        headlineMedium: GoogleFonts.outfit(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: darkTextPrimary,
+        ),
+        bodyLarge: GoogleFonts.outfit(
+          fontSize: 16,
+          fontWeight: FontWeight.normal,
+          color: darkTextPrimary,
+        ),
+        bodyMedium: GoogleFonts.outfit(
+          fontSize: 14,
+          fontWeight: FontWeight.normal,
+          color: darkTextSecondary,
+        ),
+        labelLarge: GoogleFonts.outfit(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Colors.black87,
+        ),
+      ),
+      appBarTheme: AppBarTheme(
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        titleTextStyle: GoogleFonts.tenorSans(
+          fontSize: 22,
+          fontWeight: FontWeight.w600,
+          color: primaryGold,
+          letterSpacing: 1.0,
+        ),
+        iconTheme: const IconThemeData(color: primaryGold),
+      ),
+      cardTheme: CardThemeData(
+        color: darkSurface,
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(0.3),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: primaryGold.withOpacity(0.2)),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryGold,
+          foregroundColor: Colors.black87,
+          elevation: 2,
+          shadowColor: primaryGold.withOpacity(0.3),
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          textStyle: GoogleFonts.outfit(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+      iconTheme: const IconThemeData(
+        color: primaryGold,
+        size: 24,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: darkSurface,
+        hintStyle: GoogleFonts.outfit(color: darkTextSecondary),
+        labelStyle: GoogleFonts.outfit(color: darkTextSecondary),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: primaryGold.withOpacity(0.3)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: primaryGold.withOpacity(0.3)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: primaryGold, width: 2),
+        ),
+      ),
+    );
+  }
+}
+
+enum AppThemeMode {
+  light,
+  dark,
+  system,
 }
 
 

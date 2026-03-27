@@ -5,6 +5,38 @@ import 'dart:math' as math;
 import 'package:intl/intl.dart';
 
 class RahuKaalService {
+  /// Returns DateTime start moments used by local notification scheduling.
+  ///
+  /// Keys:
+  /// - `rahuKaal`
+  /// - `pratahSandhya`
+  /// - `madhyaSandhya`
+  /// - `sayahnaSandhya`
+  static Map<String, DateTime> getSchedulingTimes({
+    required double latitude,
+    required double longitude,
+    required DateTime date,
+  }) {
+    final sunrise = _calculateSunrise(date, latitude, longitude);
+    final sunset = _calculateSunset(date, latitude, longitude);
+    final noon = _calculateNoon(date, latitude, longitude);
+
+    final dayLengthSeconds = sunset.difference(sunrise).inSeconds;
+    final dayLengthEighth = dayLengthSeconds ~/ 8;
+    final rahuKaalStart = _calculateRahuKaalStart(
+      sunrise,
+      date.weekday,
+      dayLengthEighth,
+    );
+
+    return {
+      'rahuKaal': rahuKaalStart,
+      'pratahSandhya': sunrise.subtract(const Duration(minutes: 90)),
+      'madhyaSandhya': noon.subtract(const Duration(minutes: 90)),
+      'sayahnaSandhya': sunset.subtract(const Duration(minutes: 90)),
+    };
+  }
+
   // Calculate all timings based on sunrise, sunset, and noon
   // Reference: Uses backend API to get precise sunrise/sunset, then calculates periods
   static Map<String, String> calculateTimings({
