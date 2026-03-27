@@ -268,7 +268,7 @@ class MoreTabPage extends ConsumerWidget {
                                     ? user!.name!
                                     : AppLocalizations.of(context)!.devotee,
                                 style: theme.textTheme.titleLarge?.copyWith(
-                                  color: AppTheme.textDark,
+                                  color: theme.colorScheme.onSurface,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -278,7 +278,9 @@ class MoreTabPage extends ConsumerWidget {
                                     ? user!.email
                                     : 'Update your profile details',
                                 style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: AppTheme.textDim,
+                                  color: theme.brightness == Brightness.dark
+                                      ? Colors.white.withOpacity(0.9)
+                                      : AppTheme.textDim,
                                 ),
                               ),
                             ],

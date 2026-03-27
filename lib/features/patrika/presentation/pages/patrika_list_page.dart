@@ -22,6 +22,48 @@ class _PatrikaListPageState extends ConsumerState<PatrikaListPage> {
   bool _isLoading = true;
   String? _error;
 
+  static const Map<String, int> _monthToNumber = {
+    'jan': 1,
+    'january': 1,
+    'feb': 2,
+    'february': 2,
+    'mar': 3,
+    'march': 3,
+    'apr': 4,
+    'april': 4,
+    'may': 5,
+    'jun': 6,
+    'june': 6,
+    'jul': 7,
+    'july': 7,
+    'aug': 8,
+    'august': 8,
+    'sep': 9,
+    'sept': 9,
+    'september': 9,
+    'oct': 10,
+    'october': 10,
+    'nov': 11,
+    'november': 11,
+    'dec': 12,
+    'december': 12,
+  };
+
+  int _monthNumber(PatrikaIssue issue) {
+    final normalized = issue.month.trim().toLowerCase();
+    final fromMap = _monthToNumber[normalized];
+    if (fromMap != null) {
+      return fromMap;
+    }
+
+    final asInt = int.tryParse(normalized);
+    if (asInt != null && asInt >= 1 && asInt <= 12) {
+      return asInt;
+    }
+
+    return issue.publishedDate.month;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -40,6 +82,20 @@ class _PatrikaListPageState extends ConsumerState<PatrikaListPage> {
         final json = item as Map<String, dynamic>;
         return PatrikaIssue.fromJson(json);
       }).toList();
+
+      issues.sort((a, b) {
+        final yearCompare = b.year.compareTo(a.year);
+        if (yearCompare != 0) {
+          return yearCompare;
+        }
+
+        final monthCompare = _monthNumber(b).compareTo(_monthNumber(a));
+        if (monthCompare != 0) {
+          return monthCompare;
+        }
+
+        return b.publishedDate.compareTo(a.publishedDate);
+      });
 
       final userId = ref.read(authProvider).user?.id;
       Set<String> purchasedIds = <String>{};

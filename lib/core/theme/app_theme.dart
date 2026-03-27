@@ -155,7 +155,7 @@ class AppTheme {
   static const Color darkBg = Color(0xFF0D1B2A);       // Deep navy
   static const Color darkSurface = Color(0xFF1B263B); // Dark blue
   static const Color darkTextPrimary = Color(0xFFE2E8F0); // Light blue-white
-  static const Color darkTextSecondary = Color(0xFF94A3B8); // Muted blue-gray
+  static const Color darkTextSecondary = Color(0xFFC8D4E6); // Higher-contrast blue-gray
 
   static ThemeData get darkTheme {
     return ThemeData(

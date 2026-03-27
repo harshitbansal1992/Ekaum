@@ -61,7 +61,7 @@ class _PaathDetailsPageState extends ConsumerState<PaathDetailsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Paath Details'),
+        title: const Text('My Paath List'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),

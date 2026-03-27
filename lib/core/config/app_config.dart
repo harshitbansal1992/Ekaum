@@ -5,6 +5,7 @@
 // Android emulator: flutter run --dart-define=BACKEND_URL=http://10.0.2.2:3000/api
 
 import '../services/payment_service.dart';
+import 'package:flutter/foundation.dart';
 
 class AppConfig {
   // Razorpay test credentials - replace with live keys for production
@@ -12,11 +13,18 @@ class AppConfig {
   // Note: key secret is used only on backend - never expose in app
 
   /// Backend API base URL (including /api). Set via --dart-define=BACKEND_URL=... for production.
-  static String get backendApiBaseUrl =>
-      const String.fromEnvironment(
-        'BACKEND_URL',
-        defaultValue: 'http://localhost:3000/api',
-      );
+  static String get backendApiBaseUrl {
+    const fromEnvironment = String.fromEnvironment('BACKEND_URL');
+    if (fromEnvironment.isNotEmpty) {
+      return fromEnvironment;
+    }
+
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:3000/api';
+    }
+
+    return 'http://localhost:3000/api';
+  }
 
 
   // Initialize payment service with Razorpay key (key ID only - secret stays on server)

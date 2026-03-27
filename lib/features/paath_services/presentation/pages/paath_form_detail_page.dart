@@ -26,6 +26,22 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
   bool _showCustomAmountField = false;
   String? _customAmountError;
 
+  Color _cardFrostColor(ThemeData theme) {
+    return Colors.white;
+  }
+
+  Color _primaryContentColor(ThemeData theme) {
+    return theme.brightness == Brightness.dark
+        ? Colors.white.withOpacity(0.95)
+        : theme.colorScheme.onSurface;
+  }
+
+  Color _secondaryContentColor(ThemeData theme) {
+    return theme.brightness == Brightness.dark
+        ? Colors.white.withOpacity(0.82)
+        : theme.colorScheme.onSurfaceVariant;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -109,20 +125,16 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildSummaryCard(theme, form),
-          const SizedBox(height: 16),
-          _buildPaathStatusCard(theme, form),
-          const SizedBox(height: 16),
-          _buildPaymentHistoryCard(theme, form),
+          if (form.familyMembers != null && form.familyMembers!.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _buildFamilyCard(theme, form),
+          ],
           if (form.paymentStatus != 'completed') ...[
             const SizedBox(height: 16),
             _buildNextInstallmentCard(theme, form),
           ],
           const SizedBox(height: 16),
           _buildInstallmentsCard(theme, form),
-          if (form.familyMembers != null && form.familyMembers!.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            _buildFamilyCard(theme, form),
-          ],
         ],
       ),
     );
@@ -130,6 +142,7 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
 
   Widget _buildSummaryCard(ThemeData theme, PaathForm form) {
     return GlassCard(
+      frostColor: _cardFrostColor(theme),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,61 +157,10 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
           const SizedBox(height: 8),
           _row(theme, 'Name', form.name),
           _row(theme, 'Total Amount', '₹${NumberFormat('#,##0.##').format(form.totalAmount)}'),
-          _row(theme, 'Payment Status', form.paymentStatusLabel),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaathStatusCard(ThemeData theme, PaathForm form) {
-    return GlassCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.check_circle_outline, color: AppTheme.primaryGold, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Paath Status',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textDark,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: form.paathStatus == 'done'
-                      ? AppTheme.primaryGold.withOpacity(0.2)
-                      : AppTheme.textDim.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  form.paathStatusLabel,
-                  style: TextStyle(
-                    color: form.paathStatus == 'done'
-                        ? AppTheme.primaryGold
-                        : AppTheme.textDim,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              if (form.paathDoneDate != null) ...[
-                const SizedBox(width: 12),
-                Text(
-                  'Completed on ${form.paathDoneDate}',
-                  style: theme.textTheme.bodySmall?.copyWith(color: AppTheme.textDim),
-                ),
-              ],
-            ],
-          ),
+          _row(theme, 'Payment', form.paymentStatusLabel),
+          _row(theme, 'Paath Status', form.paathStatusLabel),
+          if (form.paathDoneDate != null)
+            _row(theme, 'Completed on', form.paathDoneDate!),
         ],
       ),
     );
@@ -212,6 +174,7 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
     final pendingAmount = pendingDetails.fold<double>(0, (sum, inst) => sum + (inst.amount ?? 0));
 
     return GlassCard(
+      frostColor: _cardFrostColor(theme),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,7 +187,7 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
                 'Installment Details',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.textDark,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
             ],
@@ -238,8 +201,12 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
                   label: 'Paid by user',
                   value: '₹${NumberFormat('#,##0.##').format(paidAmount)}',
                   subtitle: '${paymentHistory.length} payment${paymentHistory.length == 1 ? '' : 's'} recorded',
-                  backgroundColor: const Color(0xFFEAFBF1),
-                  accentColor: Colors.green.shade700,
+                  backgroundColor: theme.brightness == Brightness.dark
+                      ? Colors.green.shade900.withOpacity(0.24)
+                      : const Color(0xFFEAFBF1),
+                  accentColor: theme.brightness == Brightness.dark
+                      ? Colors.green.shade300
+                      : Colors.green.shade700,
                 ),
               ),
               const SizedBox(width: 12),
@@ -249,8 +216,12 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
                   label: 'Remaining',
                   value: '₹${NumberFormat('#,##0.##').format(pendingAmount)}',
                   subtitle: '${pendingDetails.length} installment${pendingDetails.length == 1 ? '' : 's'} left',
-                  backgroundColor: const Color(0xFFFFF6E8),
-                  accentColor: Colors.orange.shade700,
+                  backgroundColor: theme.brightness == Brightness.dark
+                      ? Colors.orange.shade900.withOpacity(0.20)
+                      : const Color(0xFFFFF6E8),
+                  accentColor: theme.brightness == Brightness.dark
+                      ? Colors.orange.shade300
+                      : Colors.orange.shade700,
                 ),
               ),
             ],
@@ -259,7 +230,7 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
           if (details.isEmpty)
             Text(
               'No installment records yet.',
-              style: theme.textTheme.bodyMedium?.copyWith(color: AppTheme.textDim),
+              style: theme.textTheme.bodyMedium?.copyWith(color: _secondaryContentColor(theme)),
             )
           else ...[
             if (pendingDetails.isNotEmpty) ...[
@@ -274,19 +245,7 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
               ...pendingDetails.map((inst) => _buildInstallmentRow(theme, inst)),
             ],
           ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaymentHistoryCard(ThemeData theme, PaathForm form) {
-    final paymentHistory = form.paymentHistory ?? [];
-
-    return GlassCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+          const SizedBox(height: 16),
           Row(
             children: [
               const Icon(Icons.receipt_long, color: AppTheme.primaryGold, size: 20),
@@ -295,7 +254,7 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
                 'Payment Details',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.textDark,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
             ],
@@ -304,7 +263,7 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
           if (paymentHistory.isEmpty)
             Text(
               'No payments found in records yet.',
-              style: theme.textTheme.bodyMedium?.copyWith(color: AppTheme.textDim),
+              style: theme.textTheme.bodyMedium?.copyWith(color: _secondaryContentColor(theme)),
             )
           else ...paymentHistory.map((payment) => _buildPaymentRecordRow(theme, payment)),
         ],
@@ -341,14 +300,14 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
           Text(
             value,
             style: theme.textTheme.titleMedium?.copyWith(
-              color: AppTheme.textDark,
+              color: _primaryContentColor(theme),
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             subtitle,
-            style: theme.textTheme.bodySmall?.copyWith(color: AppTheme.textDim),
+            style: theme.textTheme.bodySmall?.copyWith(color: _secondaryContentColor(theme)),
           ),
         ],
       ),
@@ -391,6 +350,7 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
     final suggestedAmount = next.amount <= 0 ? remainingAmount : next.amount;
 
     return GlassCard(
+      frostColor: _cardFrostColor(theme),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -403,7 +363,7 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
                 'Pay Next Installment',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.textDark,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
             ],
@@ -411,17 +371,17 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
           const SizedBox(height: 10),
           Text(
             'Installment #${next.number} • Suggested ₹${NumberFormat('#,##0.##').format(suggestedAmount)}',
-            style: theme.textTheme.bodyMedium?.copyWith(color: AppTheme.textDim),
+            style: theme.textTheme.bodyMedium?.copyWith(color: _secondaryContentColor(theme)),
           ),
           const SizedBox(height: 4),
           Text(
             'Remaining: $remainingInstallments installment${remainingInstallments > 1 ? 's' : ''} • ₹${NumberFormat('#,##0.##').format(remainingAmount)}',
-            style: theme.textTheme.bodySmall?.copyWith(color: AppTheme.textDim),
+            style: theme.textTheme.bodySmall?.copyWith(color: _secondaryContentColor(theme)),
           ),
           const SizedBox(height: 4),
           Text(
             'You can pay the suggested amount or choose your own amount for this installment.',
-            style: theme.textTheme.bodySmall?.copyWith(color: AppTheme.textDim),
+            style: theme.textTheme.bodySmall?.copyWith(color: _secondaryContentColor(theme)),
           ),
           const SizedBox(height: 12),
           Row(
@@ -545,10 +505,11 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
   }
 
   Widget _buildInstallmentRow(ThemeData theme, PaathInstallment inst) {
+    final isDark = theme.brightness == Brightness.dark;
     final statusColor = inst.isPaid ? Colors.green.shade700 : Colors.orange.shade700;
     final backgroundColor = inst.isPaid
-        ? const Color(0xFFF3FCF7)
-        : const Color(0xFFFFFAF2);
+      ? (isDark ? Colors.green.shade900.withOpacity(0.24) : const Color(0xFFF3FCF7))
+      : (isDark ? Colors.orange.shade900.withOpacity(0.20) : const Color(0xFFFFFAF2));
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 6),
@@ -593,7 +554,7 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
                 Text(
                   'Installment #${inst.installmentNumber} • ${inst.amount != null ? '₹${NumberFormat('#,##0.##').format(inst.amount)}' : '-'}',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textDark,
+                    color: _primaryContentColor(theme),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -602,7 +563,7 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
                   Text(
                     'Paid on ${DateFormat('dd MMM yyyy').format(DateTime.parse(inst.paymentDate!).toLocal())}',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppTheme.textDim,
+                      color: _secondaryContentColor(theme),
                     ),
                   ),
                 ] else ...[
@@ -610,7 +571,7 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
                   Text(
                     'Awaiting payment',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: AppTheme.textDim,
+                      color: _secondaryContentColor(theme),
                     ),
                   ),
                 ],
@@ -639,10 +600,11 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
   }
 
   Widget _buildPaymentRecordRow(ThemeData theme, PaathPaymentRecord payment) {
+    final isDark = theme.brightness == Brightness.dark;
     final statusColor = payment.isCompleted ? Colors.green.shade700 : Colors.orange.shade700;
     final backgroundColor = payment.isCompleted
-        ? const Color(0xFFF3FCF7)
-        : const Color(0xFFFFFAF2);
+      ? (isDark ? Colors.green.shade900.withOpacity(0.24) : const Color(0xFFF3FCF7))
+      : (isDark ? Colors.orange.shade900.withOpacity(0.20) : const Color(0xFFFFFAF2));
     final dateValue = payment.completedAt ?? payment.createdAt;
 
     return Container(
@@ -665,7 +627,7 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
                 Text(
                   '₹${NumberFormat('#,##0.##').format(payment.amount)}',
                   style: theme.textTheme.titleSmall?.copyWith(
-                    color: AppTheme.textDark,
+                    color: _primaryContentColor(theme),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -674,18 +636,18 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
                   payment.payRemainingInFull
                       ? 'Full remaining amount paid'
                       : 'Installment #${payment.installmentNumber ?? '-'} paid',
-                  style: theme.textTheme.bodyMedium?.copyWith(color: AppTheme.textDark),
+                  style: theme.textTheme.bodyMedium?.copyWith(color: _primaryContentColor(theme)),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Payment ID: ${payment.paymentId}',
-                  style: theme.textTheme.bodySmall?.copyWith(color: AppTheme.textDim),
+                  style: theme.textTheme.bodySmall?.copyWith(color: _secondaryContentColor(theme)),
                 ),
                 if (dateValue != null) ...[
                   const SizedBox(height: 2),
                   Text(
                     'Recorded on ${DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.parse(dateValue).toLocal())}',
-                    style: theme.textTheme.bodySmall?.copyWith(color: AppTheme.textDim),
+                    style: theme.textTheme.bodySmall?.copyWith(color: _secondaryContentColor(theme)),
                   ),
                 ],
               ],
@@ -714,6 +676,7 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
 
   Widget _buildFamilyCard(ThemeData theme, PaathForm form) {
     return GlassCard(
+      frostColor: _cardFrostColor(theme),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -726,7 +689,7 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
                 'Family Members',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.textDark,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
             ],
@@ -736,7 +699,7 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
                   '${m.name}${m.relationship != null ? ' (${m.relationship})' : ''}',
-                  style: theme.textTheme.bodyMedium?.copyWith(color: AppTheme.textDark),
+                  style: theme.textTheme.bodyMedium?.copyWith(color: _primaryContentColor(theme)),
                 ),
               )),
         ],
@@ -754,13 +717,13 @@ class _PaathFormDetailPageState extends ConsumerState<PaathFormDetailPage> {
             width: 100,
             child: Text(
               '$label:',
-              style: theme.textTheme.bodyMedium?.copyWith(color: AppTheme.textDim),
+              style: theme.textTheme.bodyMedium?.copyWith(color: _secondaryContentColor(theme)),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: theme.textTheme.bodyMedium?.copyWith(color: AppTheme.textDark),
+              style: theme.textTheme.bodyMedium?.copyWith(color: _primaryContentColor(theme)),
             ),
           ),
         ],
